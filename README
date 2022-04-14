@@ -1,0 +1,721 @@
+/*
+  (c) 2022 Chris Royle
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
+
+Welcome to PHOENIX 1.0 
+----------------------
+
+The collection of scripts provided in this repository provides a fully
+functioning Viewdata system complete with public and private messaging,
+the ability for third parties to edit portions of the frame space, or
+to provide dynamically generated frames from their own infrastructure
+by responding to SOAP calls.
+
+The system comes with a built in frame editor, and a utility to convert
+existing files to downloadable telesoftware frames ('CET').
+
+The system will listen on defined TCP ports, and on those ports will 
+emulate a specified baud rate (including asymmetric 1200/75). It can also
+be provisioned to listed on its controlling terminal for use with getty
+or mgetty and modems.
+
+Separately, the Websockify utility can be used to provide access over
+websockets, but that code is not in this repository.
+
+In addition, the system can dynamically read the headlines from specified
+RSS feeds and provide those on dynamically generated pages.
+
+Finally, code exists to communicate with the UK National Rail enquiry
+service to provide arrivals and departures information for an identified
+station. However, to use this you need a key from National Rail. At the time
+of writing, National Rail were prepared to provide free keys by email for
+hobbyist use such as this.
+
+Albeit some more transaction wrapping is needed in the code, in principle
+it is possible to run several (or more) systems to provide access to the
+same set of frames off the same database, e.g. for resilience or just for
+fun.
+
+The system name
+---------------
+
+30 years ago I produced a viewdata system which ran on BBC Micros. This is the
+next version - although it is a complete re-write on a different platform
+with a whole new architecture. The name is because this is a reincarnation
+(in a sense) of the code from 30 years ago, and also the system is named
+after a (long-since decomissioned) IBM 3084 mainframe which used to run
+somewhere in East Anglia, England.
+
+System Components
+-----------------
+
+Essentially the system comprises the following:
+
+- A set of PHP scripts, of which:
+  - One is the main 'running' system, which forks a new process for
+    each connection.
+  - There are others which create 'information providers' (third party
+    access, telesoftware conversion, node (i.e. TCP listener) configuration,
+    and general configuration changes.
+
+- A backend MySQL or MariaDB database. No instructions are provided on how
+  to install that - you need to figure that one out for yourself.
+
+INSTALLATION
+------------
+
+Find a spare directory and copy the repository to it - e.g. using
+git clone https://github.com/cr12925/phoenix
+
+First, prepare the database. 
+
+- Create a blank database with a name of your choice in MySQL / MariaDB
+  e.g. 'viewdata'
+
+- Create a username that will access it with a password you can remember(!)
+  e.g. 
+
+  Mysql> CREATE USER viewdata IDENTIFIED BY 'password';
+
+- Allow access to that database from each machine which will provide any
+  nodes (i.e. access to end users or operators). You will need to give
+  the database user the following privileges on the database you have
+  created:
+
+  INSERT
+  UPDATE
+  DELETE
+  CREATE TEMPORARY TABLES
+  SELECT
+
+  e.g.
+  Mysql> GRANT INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES, SELECT on
+  viewdata.* to viewdata;
+
+  Mysql> FLUSH PRIVILEGES;
+
+Second, populate the database
+
+- This is just a case of inserting the .sql file provided in the repository
+  into your database. You will probably need to so that as a database
+  superuser because your normal user (created above) won't have the right
+  privileges to create tables, for example.
+
+  e.g.
+
+  mysql -u root -p viewdata < phoenix.sql
+
+  (Omit the -p if your root user, perhaps unwisely, does not have a 
+  password!)
+
+Third, set the configuration variables in conf.php
+
+- All you need change are the defines for DB_USER, DB_PW and DB_NAME to
+  match the database username, password and database name you picked at
+  step 1 above. No need to edit anything else in that file.
+
+Fourth, if you want to use RSS feeds
+
+- Obtain David Grundl's RSS for PHP library and put the Feed.php
+  file in the same directory as your repository files for PHOENIX.
+
+Last, cross your fingers and see if it starts up...
+
+- From the directory you've put the repository in, run:
+
+  $ php ./phoenix.php -d
+
+  In normal operations, you will not need the -d flag. It will generate a 
+  slew of debug - but it will be useful for now to make sure things are
+  working.
+
+  AT THIS STAGE YOUR SYSTEM SHOULD BE LISTENING ON TCP PORTS 6502, 6503 &
+  6504. You should be able to point your favourite viewdata client at one
+  of them and get a login screen.
+
+  Command line options
+  --------------------
+
+  -n <node> : run as a specific node number (see database index on node table)
+  -a <hostname> : Pretend local host name is <hostname> (in case you want to
+                  run on a system without defining a node for it)
+  -c : Run on stdin / stdout - useful if you attach to a modem
+  -d : Debug on (copious!)
+  -h : Display help
+
+  Running on a serial line / with a modem
+  ---------------------------------------
+
+  I've found that mgetty doesn't set 7 bit properly, so I get it to spawn
+  the 'run.getty' script from the utilities directory to set the line up
+  and that then runs Phoenix for you with -c turned on.
+
+WAYS OF CONNECTING
+------------------
+
+  Apart from a physical serial line (as to which, see later), there are
+  a number of ways of connecting but essentially they all require something
+  which will connect to a TCP socket.
+
+  One way is to use Commstar on BeebEm, and set the Custom RS423 destination
+  to your viewdata host.
+
+  Another is to obtain the Websockify utility and use it with a browser-based
+  viewdata client. A command line such as
+
+  $ websockify.pw 32768 localhost:6502
+
+  ... will generate a websocket listener on port 32768 which connects through
+  to port 6502.
+
+DEFAULT SYSTEM LOGIN
+--------------------
+
+User ID     100001
+Password    system123
+
+(Once logged in, you can change the password at *91#)
+
+NEW USERS
+---------
+
+Though you can turn the functionality off later if you want, new users
+can register using an option from the login screen, with a set of
+registration pages which are found at *81#
+
+You can edit those to your liking, including terms and conditions and
+so forth.
+
+You may wish to register yourself a 'non-system' user for everyday use.
+
+SOME NOMENCLATURE
+-----------------
+
+'Host' - A computer instance (virtual or physical) which runs the PHOENIX
+         software.
+
+'Node' - A port running on a host which accepts user connections. Nodes
+         can be configured to run only on particular hosts (by hostname,
+         including MySQL regular expressions for hostnames). They also
+         have the following attributes:
+
+	 A port (TCP port number or physical device)
+         A name (node name - e.g. 'Fred', 'Enterprise', etc.)
+         A speed (baud rate - TCP sockets will emulate the given rate, but
+           a node running on a physical serial port will adopt the port's
+           rate)
+	 A start page (the login page - defaults to system default)
+         A home page (the page to which *0# takes a user on this node)
+           (Again, will default to system default.)
+         A presentation name (allows you to hide the physical port name - 
+           e.g. present '/dev/ttyUSB3' as 'Line3')
+         An Information Provider number (defaults to 1 - main system).
+           Allows you to limit pages which can be seen on this node to the
+           set provided by that IP.
+
+'Frame' - A set of pages with a number - 1 ... 9999999999. Each Frame has
+          a set of subframes labelled a-z. Users can only select a frame,
+          and the system will move them to (e.g.) 100a - they cannot 
+          directly select 100g (for example). They can move through a, b, c...
+          by pressing #
+
+'Sub-frame' - see 'Frame'
+
+'Frame variable' - Text inserted at a marked location by the system, the text
+          depending on factors associated with the user. The following
+          exist as available variables. Each has a given length and you
+          will need to ensure that there is enough available space on the 
+          line in which they are used to accommodate them:
+
+          NODENAME - 15 characters long
+          SPEED (9) - Baud rate of the node
+          USERID (7) - Numeric user ID of user
+          REMOTEADDR (38) - DNS/IP address of user's client end
+          REMOTEIP (15) - IP address of user's client end
+          RPRT (5) - Port number at user's client end
+          USERNAME (25) - Printable user name of user
+          LOGINTIME (20) - Time user logged in Dayname d/m/y h:m
+          LASTLOGIN (19) - Previous login time of user
+
+          For message reading frames, the following are available:
+
+          SENDER (25) - Sender's real name (also used on sending screens)
+          MSGDATE (19) - Date message sent
+
+          To use a variable, you first choose whether you want the variable
+          content left justified, or centred within its maximum length.
+
+          To insert a left-justified variable, use (e.g.) @NODENAME
+          For centred, user \NODENAME (at the START of the variable space)
+
+          For examples, try editing default frames 1a, 77a, 78a, and 99a
+          Hopefully it will be obvious how it works!
+
+'Information Provider' - The system or a third party who can provide frames
+          on the system. Each IP has a defined set of frames they can control,
+          e.g. 345XX (which means frame numbers with at least 5 digits 
+          beginning 345). The IP will control all subframes within their
+          framespace.
+
+          Information providers also have the following attributes:
+ 
+          Header text - which appears top left on each frame.
+          A name - for administrative identification
+          An operator user ID - when this user ID logs in, they will have
+             IP privileges for this IP.
+          A URL - used for retrieval of dynamic frames from remote systems
+             run by the IP.
+          A key - passed for authentication when retrieving remote frames
+
+          User 100001 (the operator) is the user ID associated with IP number
+          1, which controls frames identified by 'X' - i.e. all frames of
+          length at least 1, with any digit (0-9) - i.e. the whole frameset.
+
+          It is possible to have IPs with overlapping frameset definitions.
+
+          E.g. an IP with frameset 3XX can co-exist with another (perhaps
+          an associate) who controls 350XXX.
+
+'Area' - A named set of pages belonging to a particular Information Provider.
+	 Areas are used to control access, and provide public and private
+         messaging facilities.
+ 
+         Areas can be public (accessible without logging in),
+         open (accessible by anyone if logged in), or closed (only accessible
+         by logged in users who have been granted access). Users can be blocked
+         from an 'open' area if need be.
+
+         Areas have a readable name, must belong to an IP, and are defined
+         by a frame number regular expression like information provider
+         framesets.
+
+         Note, the system will always pick the most specific frameset
+         expression - so if there are overlapping areas (e.g. 1X and 15X)
+         and the user picks frame 151, the system will pick the 15X definition.
+
+         By way of example, the system comes by default with the following
+         areas:
+
+         PUBLIC - 8X - Which is used for login pages
+         OPEN - X - i.e. all frames
+         SUPERUSER - 1X - Closed - Superuser pages. 
+         SYSTEM - 3X - Open - System configuration pages
+
+'CET' - The format specification for viewdata telesoftware.
+
+'Message Board' - An area where messages can be sent / received. They are
+        defined by (i) a sending page number (including subframe ID) and
+        (ii) a reading page number (without subframe ID).
+
+        It is possible to have more than one sending page for each reading
+        page. E.g. in the dim and distant past, Prestel had a Valentine's 
+        day message sending service which had a different appearance from
+        the usual, on a different frame.
+
+        However, the sending pages must be unique across the system.
+
+        A message sent from a given sending page will be readable on the
+        corresponding reading page.
+
+        Message boards can be personal or public. Personal boards require a
+        single destination user to be given by the sender. Public boards
+        do not, and messages are readable by anyone who can access the board.
+
+        Closed areas can be used to restrict access to message boards. E.g.
+        a message board for inforamtion providers only could be set up which
+        is 'public' but is in an area only IPs can access, thus general users
+        will not see its contents.
+
+'Short codes' - textual names which map to frame numbers for convenience.
+        E.g.
+ 
+	*HOME# - which maps to page 0 by default and takes a user to the
+          home page associated with their node (or the default - 1)
+
+        *BYE# - which takes a user to frame 90 to log off
+
+        *PASSWORD# - which goes to frame 91 to change the password
+
+        *WHO# - which goes to frame 99 for user information.
+
+'Response frame' - A special frame with fields defined in the frame editor
+        which take user input and can be submitted. There are various types
+        of field (see below). All of them can be transmitted to an IP's
+        remote server over the SOAP interface.
+
+        Field types are:
+
+        Numeric - 0-9 only
+        Alphanumeric - A-Z, a-z, and 0-9 only
+        Alpha - A-Z, a-z only
+        All text - Any characeters but not control codes such as colour
+        Visible - Everything, save for cursor control and the like
+
+        Fields can also be set to...
+
+        Hide the input ('Password' mode)
+        Be required to have content ('Notempty' mode)
+
+        They can also be multiline (they do not have to take up the whole
+        line width either), in which case they will word wrap and scroll.
+
+'Publish' - Each frame can have two copies in the system, one published and
+        one unpublished. The unpublished version is the one being edited by
+        the operator or an IP. When it is published, it replaces the existing
+        published frame and is deleted. This allows updates to be done over 
+        time without having to do a whole edit in a single sitting.
+
+'Preview' - When an IP or operator is in frame preview mode, they see the
+        unpublished versions of frames if available - the page number will
+        appear blue instead of yellow at the top of the screen.
+
+'Star commands' - Commands entered by pressing * as a user or operator.
+        A green * will appear at the bottom of the frame and the user can
+        type a command. Users can generally only enter frame numbers or
+        short codes.
+
+        Three special star commands exist for all users:
+  
+        *# - move to previous sub-frame/frame
+ 
+        *00 - Redisplay current frame without reloading it (e.g. if the 
+              frame is dynamic, the current version will redisplay; if it is
+              a response frame the user's existing input will be retained)
+
+        *09 - Redisplay current frame WITH reloading (new dynamic copy
+              obtained; or for response frames input will be lost)
+
+        IPs and operators have significantly more commands - see below.
+
+FRAME VARIABLES
+---------------
+
+See above. Plus see aide memoire at *22# (and then # for next page)
+
+UTILITIES
+---------
+
+Some features are far easier to control by a command line on the system.
+
+These are:
+
+- cetutil.php - Converts a file in the Unix filesystem into a set of
+                downloadable telesoftware frames. NB this will overwrite
+                existing frames!
+
+- ipsoap.php - Sets the SOAP URL for the IP with a given user ID.
+
+- msgcleanup.php - Garbage collects deleted messages
+
+- nodeutil.php - Allows creation of nodes, and changing their parameters.
+                 $ php nodeutil.php -h
+                 ... for help
+
+- setconfig.php - Changes system configuration variables - e.g.
+                 $ php setconfig.php homepage 10    (Sets the default 
+                                                     home page to 10)
+
+                 The other system variables are:
+
+                 startpage - the default login frame
+                 superuser - the ID of the superuser. Don't change this from 1.
+                 nr_token - National Rail token (see elsewhere in this doc!)
+
+SUPERUSER / IP STAR COMMANDS
+----------------------------
+
+Where these commands relate to a frame or frameset, they only work for an IP
+if the IP is trying to use them in relation to his/her assigned frame range.
+
+In what follows, <framedef> means a frame regular expression - e.g.
+  3XX
+
+*ACREATE <name> <C|O> <framedef># - Creates a new area. Will fail if the
+        framedef is wholly or partially outside the user's authorization.
+
+        C = Closed; O = Open.
+
+        There is presently no way to create a Public area this way.
+
+        e.g. *ACREATE PRIVATE C 45XX# 
+        Creates an area called private, owned by the current user's IP,
+        which is closed to users without authorization, and covers all frames
+        at least 4 digits long beginning 45.
+
+*ACCESS <name> <userid> <P|R> <M|U># - Grant / revoke access to area
+        Area name is that specified as <name>
+        Modify access for <userid>
+        P = Positive - i.e. access to closed; revoked for open
+        R = Remove permissions for this area (so the user goes back to
+            whatever the default position is for this area e.g. open/closed)
+        M = Moderator - extra rights on messages
+        U = User - Ordinary user
+
+*ACCESS <name> <O|C># - Change area to open / closed
+
+*ADELETE <name># - Delete area with <name>
+       NB: Pages will fall into the next most specific area, even if not
+       owned by the same IP.
+
+*FCOPY <frame-from> <frame-to># - Copy a complete frame set to a new frame
+        set, overwriting as may be needed. Note that no response variables or
+        routes go with it - you will need to recreate those.
+
+*FDELETE <subframe># - Delete a particular subframe (both published & not)
+
+*FDYNAMIC <framestart> <frameend># - Sets all frames in range to be dynamic.
+         (i.e. not retrieved from the database but generated on the fly - 
+         either by code for the local IP, or pulled over SOAP for others.)
+
+         To delete a range: *FDYNAMIC <framestart> DELETE#
+
+*FEDIT (<subframeid>)# - Edit a subframe ID. Creates an unpublished version 
+                         if none exists. If subframeid is omitted, attempts
+                         to edit current frame. 
+
+                         See *21# for a guide to frame editing
+
+*FFLAGS <subframeid> <P|U> <+|-FLAG># - Sets/removes flags on published/
+            unpublished frame versions. 
+
+            P = Act on published version; U = unpublished.
+
+            + means set the flag; - means unset it.
+
+            Flags:
+	
+            HIDEIP - Hides the IP title top left. Used on login frame.
+            HIDEFRAMEID - Hides the subframe ID. Used on login frame.
+            HIDETIME - Hides the time top right. Used on login frame.
+            DISCONNECT - Disconnect user when frame has displayed.
+            LOGIN - Requires user to be logged in.a (CHECK)
+            NOLOGIN - User not required to be logged in.
+            FRAMEVARS - Enables frame variables on this frame
+            
+         
+*FPREVIEW# - Switch to preview mode. Shows the operator unpublished frames
+             within their control if available - frame number appears blue.
+
+             *FPREVIEW OFF# to disable.
+
+*FPUBLISH (subframeid | frame*)# - Publishes a single subframe, or an entire
+                                   frameset (a-z). The editor will let you
+                                   publish the frame you are editing on exit;
+                                   this allows you to do it outside the
+                                   editor.
+
+*FRENUM <subframeid-from> <subframeid-to># - Renumber a subframe
+
+*FRENUM <frame-from> <frame-to># - Renumber a whole frameset
+
+*IPDELETE <userid># - Remove IP associated with <userid>
+       NB: All their frames will fall into the next most specific IP up.
+
+*IPSET <userid> <framedef># - Assign framedef to a new IP owned by existing
+       user <userid>
+       The system will prompt for name, location, SOAP key, IP header.
+
+*MBOARD <name> <sending-subframeid> <reading-subframeid>
+       Crates a new message board with sending & reading frames as defined.
+
+       *MBOARD <name> DELETE# to delete
+
+*SHORT <shortcode> <frame># - Create <shortcode> to point to <frame>
+       Will fail if <frame> is not controlled by user.
+
+Limited aide memoires avialable at *20#
+
+MOVING BETWEEN FRAMES
+---------------------
+
+- Use a * command (including short codes)
+
+- Use a route from a page (key presses 0 - 9 can be set to move to a defined
+  frame number - and will transition to ...a)
+
+- Press # on a frame to look for the next subframe.
+
+FRAME EDITOR
+------------
+
+Fuller instructions available at *21# but in general:
+
+Typing and using the arrow keys do what they should do.
+
+ESC provides access to
+- Text colour codes (A-G)
+- Plus double height, flashing etc.
+- Graphics colour codes (CHECK)
+- Saving / Publishing (use ESC twice for the menu)
+
+Ctrl-L provides various functions
+- Ctrl-L Ctrl-L clears the frame
+- Ctrl-L 1 marks a response field start
+- Ctrl-L 2 marks the field end
+- Ctrl-L 3 abandons creation of a field
+- Ctrl-L 4 reveals fields on the screen
+- Ctrl-L 7 Enter graphics edit mode. Only useful if you have a graphics
+           colour active. Allows you to use QAZ WSX to toggle the 6 pixels
+- Ctrl-L 8 Exit back to text edit mode
+- Ctrl-L 9 Reposition cursor to where the system thinks it is (in case of 
+           line noise)
+
+To set a frame route, use Ctrl-L R
+
+Text / Graphics colour / effect codes:
+
+ESC followed by....
+
+A Red text
+B Green text
+C Yellow text
+D Blue text
+E Magenta text
+F Cyan text
+G White text
+
+H Flash
+I Steady (stop flashing)
+L Normal height
+M Double height
+
+Q Red graphics
+R Green graphics
+S Yellow graphics
+T Blue graphics
+U Magenta graphics
+V Cyan graphics
+W White graphics
+
+X Conceal (revealed by a key on the terminal)
+Y Contiguous graphics
+Z Separate graphics
+
+\ Black background
+] New background (from current text colour)
+
+MESSAGING FRAMES
+----------------
+
+Use *FEDIT on the samples at 77a and 78a to see how this works.
+
+Messaging frames inherit the area they are in, and only those with access
+to the area can esee them. If flagged as personal, users will only see
+messages addressed to them. Otherwise messages are visible for all area
+users.
+
+You *must* set the FRAMEVARS flag on a messaging frame (send or receive).
+
+Sending frames *must* include two frame variables and two/three response fields:
+
+The variables are SENDER & MSGDATE - which are populated with sender name
+and sending date.
+
+The response fields must be named and set up as follows:
+
+USER - destination user (not required on non-personal boards)
+SUBJECT - Message subject
+TEXT - Multiline, Alphanumeric field containing the message. This need not be
+full frame width.
+
+Receiving frames must exist as subframe 'a' only and must have 20 specific
+variables on them, namely
+
+@1 (first index number on this page) up to @5
+@FROMn (where n = 1 to 5) - sender name
+@SUBJECTn (where n = 1 to 5) - Subjects
+@DATEn (where n = 1 to 5) - Sent date
+
+See the sample subframe 78a for an example.
+
+If the user progresses to subframe 'b' (or thereafter) on a reading page, 
+they will see further messages if there are any. Newer messages are first.
+Unread messages have their sent date highlighted with a *.
+
+A moderator can delete a public message in their area.
+
+Eventually a moderator will be able to *edit* a message from someone else
+in their area.
+
+RSS Feeds
+---------
+
+Documentation to be written... but see example code in ip_lib.php in the
+sysip_DYNAMIC function, which in turn calls phoenix_getrss().
+
+SOAP communications with remote IPs
+-----------------------------------
+
+Yet to be written, but basically the URL will get calls with a SOAP function
+which is either DYNAMIC (to pull a subframe) or SUBMIT (to send a response
+frame). The parameters will be
+- The key
+- The subframe ID
+- A data array (associative array of fields => values)
+- The user ID of the user.
+
+For a response frame, the return value MUST be an array consisting of 
+two elements.
+
+- IPR_GOTOFRAME and then a frame ID
+  OR
+- IPR_TRYAGAIN and 0
+
+The former sends the user to the 'a' subframe of the frame ID specified
+The latter is a rejection (which presently probably fails!)
+
+For a dynamic frame, the return must be an array consisting of the following
+associatively named elements:
+
+frame_content - 880 bytes of frame data
+frame_next - 0
+frame_routes - array of routes (see below)
+frame_response - array of variables (see below)
+area_name - upper case string area name
+
+frame_routes - this array consists of arrays as follows:
+- First element - String 'Page'
+- Second element - frame ID
+- Third element - Empty string
+
+frame_response - this array consists of numerically indexed arrays, each
+containing the following associatively named elements
+fr_start - character number of start position (0 - 879)
+fr_end - character number of end position (likewise)
+fr_attr - attributes, lower case, comma separated - e.g. 'notempty', 
+    'password'
+fr_limit_input = string, must be one of 'numeric', 'alpha', 'alphanumeric'
+    'visible', 'alltext'
+fr_fieldname - string, uppercase - e.g. 'SENDER'
+
+A sample SOAP server-side script is in the SOAP directory.
+
+Please ignore the defines for IPR_VALIDATE, IPR_INVALID - these are for
+future use for dynamically validing input in a response field before moving
+to the next field.
+
+User IDs
+--------
+
+Note that in the database, these are one digit shorter than as used because
+a check digit is added. So user 100001 (the default system user) is index
+10000 in the database.
+
+CONCLUSION
+----------
+
+There are a few placeholders here and this is a first stab only, but 
+hopefully you will get some enjoyment out of it!

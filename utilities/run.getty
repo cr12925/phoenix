@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd /nfs/viewdata
+stty cs7 parenb -parodd -icanon crtscts istrip -ixon -ixoff -isig -echo tab0
+/usr/bin/php phoenix.php $*
