@@ -328,7 +328,8 @@ function sysip_LOGIN($frame_id, $data)
 
 // RSS
 
-require_once("Feed.php");
+if (file_exists('Feed.php'))
+	require_once("Feed.php");
 
 function get_url_body($url, $id)
 {
