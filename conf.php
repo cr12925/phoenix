@@ -19,7 +19,7 @@
 
 // Database
 
-define('DB_HOST', "docker.server.cctv.royle.org");
+define('DB_HOST', "YOUR_MYSQL_HOST");
 define('DB_USER', "viewdata");
 define('DB_PW', "viewdata");
 define('DB_NAME', "viewdata");
