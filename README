@@ -607,6 +607,9 @@ Z Separate graphics
 \ Black background
 ] New background (from current text colour)
 
+a Hold Graphics
+b Release Graphics
+
 MESSAGING FRAMES
 ----------------
 

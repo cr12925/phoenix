@@ -657,9 +657,13 @@ where		frame_id = ?";
 						if (($second_key >= chr(65) and $second_key <= chr(73))  or // Control codes
 					    	($second_key >= chr(76) and $second_key <= chr(77)) or
 					    	($second_key >= chr(81) and $second_key <= chr(90)) or
-					    	($second_key >= chr(92) and $second_key < chr(95))) // 95 is hash which is dealt with above
+					    	($second_key >= chr(92) and $second_key < chr(95)) or
+						($second_key >= chr(97) and $second_key <= chr(98))) // 95 is hash which is dealt with above, 97-98 ('a', 'b') are used as specials to get hold & release graphics
 						{
 							debug ("Editor - received escape code ".$second_key." ord ".ord($second_key));
+							if ($second_key >= chr(97) and $second_key <= chr(98))
+								$second_key = chr(ord($second_key) - 3);
+
 							$frame_data[(40*($y-1))+$x] = chr(ord($second_key) + 64);
 							ser_output_conn(chr(ord($second_key)+64));
 							$x++;
