@@ -686,7 +686,7 @@ function sysip_REGISTER($frame, $data)
 	{
 		$query = "insert into user(user_pw, user_realname) values (?, ?)";
 		$r = dbq($query, "ss", password_hash($password1, PASSWORD_DEFAULT), $firstname." ".$surname);
-		if ($r['result'])
+		if (($r['success']) and (($r['affected'] == 1)))
 		{
 			$user_id = $r['insert_id'];
 			@mysqli_free_result($r['result']);
@@ -699,6 +699,7 @@ function sysip_REGISTER($frame, $data)
 	}
 
 	return $ret;
+	//return sysip_LOGIN ($config['startpage'], array('USERID' => $public_id, 'PASSWORD' => $password1));
 }
 
 function sysip_VALIDATE($frame_id, $user_id, $fieldname, $data)
