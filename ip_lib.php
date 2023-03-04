@@ -672,7 +672,7 @@ function sysip_REGISTER($frame, $data)
 	$password1 = $data['PASSWORD'];
 	$password2 = $data['PASSB'];
 
-	$ret = array(IPR_GOTOPAGE, $config['startpage']);
+	$ret = array(IPR_GOTOFRAME, $config['startpage']);
 
 	if ($password1 != $password2)
 	{

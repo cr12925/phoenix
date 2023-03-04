@@ -970,7 +970,7 @@ function phoenix_star()
 	global $userdata;
         to_bottom();
         ser_output_conn(sprintf("%39s", "").VNLINESTART.VSTAR_PROMPT);
-        $input_string = ser_input_str(35,VDKEYALPHANUMERIC.VDKEYSPACE.VNLEFT.VDKEYBACKSPACE, true, true);
+        $input_string = ser_input_str(35,"+-".VDKEYALPHANUMERIC.VDKEYSPACE.VNLEFT.VDKEYBACKSPACE, true, true);
         return ($input_string);
 }
 
