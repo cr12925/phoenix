@@ -19,10 +19,10 @@
 
 // Database
 
-define('DB_HOST', "YOUR_MYSQL_HOST");
-define('DB_USER', "viewdata");
-define('DB_PW', "viewdata");
-define('DB_NAME', "viewdata");
+define('DB_HOST', "localhost");
+define('DB_USER', "phoenix");
+define('DB_PW', "phoenix");
+define('DB_NAME', "phoenix");
 
 // Don't alter anything below here
 
@@ -95,6 +95,7 @@ class User {
 	var $limit_ip_id; // Once logged in, will only show frames from this IP ID
 	var $user_name;
 	var $homepage;
+	var $logoffpage;
 	var $last_output;
 	var $last_input;
 	var $remote_addr;
@@ -109,6 +110,7 @@ class User {
 	var $ip_base; // Root page number of IP's own space
 	var $ip_base_len; // Minimum page number length to fall within IP's space. Usually 3.
 	var $ip_id; // IP ID for new frames
+	var $secondary_ip_id; // Other IP IDs we have access to - array of k:v and both are an ip_id
 	var $preview; // Whether in unpublished frame preview mode
 	var $editing; // Whether in the frame editor
 	var $login_time; // time() when logged in - calculates time online variable

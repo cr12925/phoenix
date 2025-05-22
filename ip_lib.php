@@ -52,7 +52,19 @@ function ip_function($ip, $function, $frame_id, $data_array)
 	{
 		if ($r['numrows'] == 1)
 			$force_system = 1;
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
+	}
+
+	$r = dbq("select ip_use_sysip from information_provider where ip_id = ?", "i", $ip);
+	if ($r['success'])
+	{
+		if ($r['numrows'] == 1)
+		{
+			$row = @mysqli_fetch_assoc($r['result']);
+			$force_system = $row['ip_use_sysip'];
+		}
+		dbq_free($r);
 	}
 
 	if ($force_system) debug ("Forcing use of system IP call");
@@ -77,7 +89,8 @@ function ip_function($ip, $function, $frame_id, $data_array)
 		if ($r['result'])
 		{
 			$row = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			
 			try {
 				debug ("SOAP request to ".$row['ip_url']);
@@ -137,7 +150,8 @@ and	ip_id=?";
 			$data['area_id'] = 1; // Public area if this area isn't ours
 		}
 
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 		
 	}
 	else
@@ -172,7 +186,8 @@ function sysip_SUBMIT($frame, $data, $userid)
 		if ($r['numrows'] == 1)
 		{
 			$mb_data = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			$mb_flags = $mb_data['mb_flags'];
 
 			if (isset($data['USER']))
@@ -214,7 +229,7 @@ function sysip_SUBMIT($frame, $data, $userid)
 
 	switch (strtolower($frame))
 	{
-		case 170: 
+		case "170a": 
 		{
 			// Populate local state
 			$userdata->nr_stn_srch = strtoupper($data['STN']);
@@ -278,43 +293,62 @@ function sysip_LOGIN($frame_id, $data)
 	{
 		if ($row = @mysqli_fetch_assoc($r['result']))
 		{
-			if (password_verify($data['PASSWORD'], $row['user_pw']))
-			{
-			// Successful login
-			$userdata->user_id = $row['user_id'];
-			if ($row['user_homepage'])
-				$userdata->homepage = $row['user_homepage'];
-			else
-				$userdata->homepage = $config['homepage'];
-			$userdata->user_name = $row['user_realname'];
-			if (!$userdata->previous_login_time = $row['ull'])
-				$userdata->previous_login_time = "Never";
-			dbq_starttransaction();
-			dbq("update user set user_last_login=now(), user_idle_since=NOW(), user_last_logoff=null, user_last_node=?", "i", $userdata->node_id);
-			dbq_commit();
-			@mysqli_free_result($r['result']);
+			//printf ("\n\n***Hash: ".$row['user_pw']." / Pw: ".$data['PASSWORD']." / result: ".(password_verify($data['PASSWORD'], $row['user_pw']) ? "Correct" : "Incorrect")."\n\n");
 
-			log_event("Login", $userdata->user_id, "Success");
-			// See if we are an IP
-			$userdata->ip_base = $userdata->ip_base_len = null;
-			$s = dbq("select ip_base, ip_id from information_provider where user_id=?", "i", $userdata->user_id);
-			if ($s['result'])
-			{
-				if ($row = @mysqli_fetch_assoc($s['result']))
+			if (password_verify($data['PASSWORD'], $row['user_pw']))
 				{
-					$userdata->ip_base = $row['ip_base'];
-					$userdata->ip_id = $row['ip_id'];
+				// Successful login
+				$userdata->user_id = $row['user_id'];
+				if ($row['user_homepage'])
+					$userdata->homepage = $row['user_homepage'];
+				else
+					$userdata->homepage = $config['homepage'];
+				$userdata->user_name = $row['user_realname'];
+				if (!$userdata->previous_login_time = $row['ull'])
+					$userdata->previous_login_time = "Never";
+				dbq_starttransaction();
+				dbq("update user set user_last_login=now(), user_idle_since=NOW(), user_last_logoff=null, user_last_node=?", "i", $userdata->node_id);
+				dbq_commit();
+				dbq_free($r);
+				//@mysqli_free_result($r['result']);
+	
+				log_event("Login", $userdata->user_id, "Success");
+				// See if we are an IP
+				$userdata->ip_base = $userdata->ip_base_len = null;
+				$s = dbq("select ip_base, ip_id from information_provider where user_id=?", "i", $userdata->user_id);
+				if ($s['result'])
+				{
+					if ($row = @mysqli_fetch_assoc($s['result']))
+					{
+						$userdata->ip_base = $row['ip_base'];
+						$userdata->ip_id = $row['ip_id'];
+					}
+					dbq_free($s);
+					//@mysqli_free_result($s['result']);
 				}
-				@mysqli_free_result($s['result']);
-			}
-			return (array(IPR_GOTOFRAME, $userdata->homepage));
+
+				/* Load list of other IPs we are effectively owner for */
+
+				$userdata->secondary_ip_id = array();
+				$s = dbq("select ip_id from ip_user where user_id=?", "i", $userdata->user_id);
+				if ($s['result'])
+				{
+					while ($row = @mysqli_fetch_assoc($s['result']))
+					{
+						$userdata->secondary_ip_id[$row['ip_id']] = $row['ip_id'];
+					}
+					dbq_free($s);
+				}
+
+				return (array(IPR_GOTOFRAME, $userdata->homepage));
 			}
 
 		}
 
 		log_event("Login", 0, "Failure");
 		// If we get here, there wasn't a row - so probably wrong username / password
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 		show_error($userdata->conn, "Bad username / password.");
 		sleep(2);
 		return (array(IPR_TRYAGAIN, $config['startpage']));
@@ -508,7 +542,8 @@ LIMIT	?, ?", 	"iii", $userdata->ip_id, $range_start, $range_end);
 		{
 			while ($data = @mysqli_fetch_assoc($r['result']))
 				$frame_data['frame_content'] .= sprintf("%-40s", sprintf(" %10s   %10s", $data['dyn_start'], $data['dyn_end']));
-			@mysqli_free_result($r['result']);	
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);	
 		}
 		$frame_data['frame_content'] = base64_encode($frame_data['frame_content']);
 		return $frame_data;
@@ -614,7 +649,8 @@ function sysip_CHPW($frame_id, $data)
 		if ($r['numrows'] == 1)
 		{
 			$data = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			if(password_verify($oldpw, $data['user_pw'])) // Password correct
 			{
 				$r = dbq("update user set user_pw = ? where user_id = ?", "si",
@@ -689,7 +725,7 @@ function sysip_REGISTER($frame, $data)
 		if (($r['success']) and (($r['affected'] == 1)))
 		{
 			$user_id = $r['insert_id'];
-			@mysqli_free_result($r['result']);
+			if ($r['result'] !== false) { dbq_free($r); /* @mysqli_free_result($r['result']); */ }
 			$public_id = strval($user_id).userid_checkdigit($user_id);
 			show_prompt($userdata->conn, "ID: $public_id. Key 0.");
 			$i = false;
@@ -762,7 +798,8 @@ function validate_userid($u)
 
 	$r = dbq("select user_id from user where user_id=?", "i", $id);
 	$rows = $r['numrows'];
-	@mysqli_free_result($r['result']);
+	dbq_free($r);
+	//@mysqli_free_result($r['result']);
 	if ($rows == 1)
 		$ret = true;
 		
@@ -783,7 +820,8 @@ function msg_post ($sender_page, $msg_dest, $msg_subject, $msg_text)
 		if ($r['numrows'] == 1)
 		{
 			$data = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			$mb_id = $data['mb_id'];
 			$msg_subject = trim(substr($msg_subject, 0, 30)); // Trim
 			$msg_sender = $userdata->user_id;
@@ -807,7 +845,10 @@ function msg_post ($sender_page, $msg_dest, $msg_subject, $msg_text)
 					$ret = false;
 				}
 				else
-					@mysqli_free_result($r['result']);
+				{
+					dbq_free($r);
+					//@mysqli_free_result($r['result']);
+				}
 			}
 			else
 				debug ("msg_post(): Failed to validate destination $msg_dest");
@@ -873,7 +914,8 @@ AND NOT EXISTS (
 	if ($r['result'])
 	{
 		$data = @mysqli_fetch_assoc($r['result']);
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 		$msgs = $data['msgs'];
 		debug ("Msg check successful - $msgs new");
 	}

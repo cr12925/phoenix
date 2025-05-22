@@ -102,16 +102,22 @@ function dbq($s, ...$args)
 			array_push ($params, ...$args);
 			debug("$s  -- Query error: $msg");
 		}
-		else
+		else if ($result)
+		{
 			if ($db_debug_flag) debug("$s -- Successful query - ".@mysqli_num_rows($result)." rows returned");
+		}
+		else
+		{
+			if ($db_debug_flag) debug("$s -- Successful query");
+		}
 	}
 
 	$ret['success'] = $success;
 	if (!isset($result)) $result = false;
 	$ret['result'] = $result;
 	$ret['msg'] = $msg;
-	$ret['numrows'] = @mysqli_num_rows($result);
-	$ret['insert_id'] = @mysqli_insert_id($dbh);
+	if (is_bool($result)) $ret['numrows'] = 0; else $ret['numrows'] = @mysqli_num_rows($result);
+	if (!$success) $ret['insert_id'] = 0; else $ret['insert_id'] = @mysqli_insert_id($dbh);
 	if (count($args) == 0)
 		$ret['affected'] = @mysqli_affected_rows($dbh);
 	else
@@ -119,6 +125,14 @@ function dbq($s, ...$args)
 
 	return($ret);
 
+}
+
+function dbq_free($data)
+{
+	if (!is_bool($data['result']))
+	{
+		@mysqli_free_result($data['result']);
+	}
 }
 
 function dbq_starttransaction()

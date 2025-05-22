@@ -73,7 +73,8 @@ if ($r['result'])
 {
 	while ($data = @mysqli_fetch_assoc($r['result']))
 		$final_nodes[$data['node_id']] = $data['node_port'];
-	@mysqli_free_result($r['result']);
+	//@mysqli_free_result($r['result']);
+	dbq_free($r);
 }
 else
 {
@@ -138,14 +139,16 @@ foreach ($final_nodes as $node_id => $node_port)
 		$r = dbq("select * from node where node_id = ?", "d", $node_id);
 		if ($r['numrows'] == 0)
 		{
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 			print "Cannot find node $node_id in database. Quitting.\n";
 			exit();
 		}
 		else
 		{
 			$data = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 			break; // Escape the loop
 		}
 	}
@@ -205,7 +208,8 @@ while ($row = @mysqli_fetch_assoc($r['result']))
 {
 	$config[$row['config_var']] = $row['config_val'];
 }
-@mysqli_free_result($r['result']);
+//@mysqli_free_result($r['result']);
+dbq_free($r);
 
 // Clear down all nodes
 //dbq("update node set user_id=null where node_port = ?", "i", $port);
@@ -509,7 +513,8 @@ function is_dynamic ($page_no)
 			debug ("Page $page_no is dynamic.");
 			$ret = true;
 		}
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 	}
 
 	return $ret;
@@ -530,7 +535,8 @@ function load_dynamic_ip_info($page_no)
 	if ($r['result'])
 	{
 		$row = @mysqli_fetch_assoc($r['result']);
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 		$ret = $row;
 	}
 		else	debug ("Loading IP info for dynamic page $page_no failed");
@@ -589,7 +595,8 @@ WHERE		msg.mb_id IN ($mb_id)
 	{
 		$d = @mysqli_fetch_assoc($r['result']);
 		$n = $d['number'];
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 		debug ("find_msgs $mb_id found $n messages");
 	}
 	$r = dbq("delete from msg_temp where mr_flags = 'Deleted'"); // This is inefficient and ought to be fixable in the queries above. Suggestions on a postcard to anyone but me.
@@ -624,7 +631,8 @@ WHERE   frame_pageno_list = ?
                         debug ("is_msg_index($frame_pageno, $frame_subframeid) found message board (".implode(',',$mb_id).")");
                 }
                 else    $ret = false;
-                @mysqli_free_result($r['result']);
+                //@mysqli_free_result($r['result']);
+		dbq_free($r);
         }
         else    $ret = false;
 
@@ -645,7 +653,8 @@ WHERE   frame_pageno_list = ?
 		{
 			$d = @mysqli_fetch_assoc($r['result']);
 			$actual_msgs = $d['c'];
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 		}
 
                 if (($actual_msgs < $min_msgs) and ($frame_subframeid != 'a')) // Insufficient messages and not on the 'a' frame
@@ -665,7 +674,8 @@ WHERE   frame_pageno_list = ?
 			{
 				while ($d = @mysqli_fetch_assoc($r['result']))
 					array_push($userdata->msg_index_data, array($d['user_realname'], $d['msg_subject'], $d['msg_stamp'], $d['msg_new']));
-				@mysqli_free_result($r['result']);
+				//@mysqli_free_result($r['result']);
+				dbq_free($r);
 				debug ("is_msg_index() populated ".count($userdata->msg_index_data)." messages for index.");
 			}
 
@@ -715,7 +725,8 @@ ORDER BY	LENGTH(frame_pageno_list) DESC
 				$frame_pageno_list = $d['frame_pageno_list']; // They should all be the same!
 			}
 		}
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 	}
 	else	$ret = false;
 
@@ -762,7 +773,8 @@ ORDER BY	LENGTH(frame_pageno_list) DESC
 				else
 				{
 					$field_data = @mysqli_fetch_assoc($fr_r['result']);
-					@mysqli_free_result($fr_r);
+					//@mysqli_free_result($fr_r['result']);
+					dbq_free($fr_r);
 			
 					// Calculate rows & line length
 					$rows_per_frame = intval($field_data['fr_end'] / 40) - intval($field_data['fr_start'] / 40) + 1;
@@ -802,7 +814,8 @@ ORDER BY	LENGTH(frame_pageno_list) DESC
 		
 			}
 
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 		}
 		
 		dbq("DROP TABLE msg_temp");
@@ -958,7 +971,8 @@ function load_frame_data($frame_pageno, $frame_subframeid, $preview)
 		debug("Frame $frame_pageno$frame_subframeid - SQL data loaded");
 		$ret[0] = @mysqli_fetch_assoc($r['result']);
 		$userdata->frame_data = $ret[0];
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 
 		// The ip_id in the framestore is not in fact accurate! We should get it by looking up whose IP this really is.
 		$ip_info = load_dynamic_ip_info($frame_pageno_to_load);
@@ -991,7 +1005,8 @@ WHERE 	frame.frame_id = frame_key.frame_id and frame_key.frame_id = ? ".$preview
 			}
 
 			$ret[1] = $userdata->frame_routes;
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 		}
 		else
 		{
@@ -1049,7 +1064,9 @@ $query =	"select * from frame_response where frame_id=? ".$preview_extra." order
 		{
 			while ($row = @mysqli_fetch_assoc($r['result']))
 				$userdata->frame_response[] = $row;
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			//
+			dbq_free($r);
 		}
 		else
 		{
@@ -1060,7 +1077,8 @@ $query =	"select * from frame_response where frame_id=? ".$preview_extra." order
 
 	else	
 		{
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 			debug ("Load frame data for $frame_pageno$frame_subframeid yielded nothing. $query -- $frame_pageno_to_load -- $frame_subframeid_to_load");
 		}
 	} // Load from database - Note the indentation is wrong
@@ -1084,7 +1102,7 @@ $query =	"select * from frame_response where frame_id=? ".$preview_extra." order
 }
 
 // Process a star command.
-function process_star($conn, $str, $frame, $prev)
+function process_star($conn, $str, $frame, $prev, $ip_id)
 {
 
 	global $userdata, $config;
@@ -1125,7 +1143,9 @@ frame_pageno = ".$matches[1];
 					$frame_ids = array();
 					while ($row = @mysqli_fetch_assoc($r['result']))
 						$frame_ids[] = $row['frame_id'];
-					@mysqli_free_result($r['result']);
+					//@mysqli_free_result($r['result']);
+			//
+					dbq_free($r);
 
 					foreach ($frame_ids as $f)
 					{
@@ -1148,7 +1168,7 @@ frame_pageno = ".$matches[1];
 	}
 	else if (preg_match('/^fpreview$/', $str))
 	{	// Preview unpublished frames
-		if ($userdata->ip_id) // Is IP
+		if ($userdata->ip_id or sizeof($userdata->secondary_ip_id) > 0) // Is IP
 		{
 			$userdata->preview = 1;
 			show_prompt ($conn, "Preview mode enabled");
@@ -1161,7 +1181,7 @@ frame_pageno = ".$matches[1];
 	}
 	else if (preg_match('/^fpreview off$/', $str))
 	{	// Preview unpublished frames
-		if ($userdata->ip_id) // Is IP
+		if ($userdata->ip_id or sizeof($userdata->secondary_ip_id) > 0) // Is IP
 		{
 			$userdata->preview = 0;
 			show_prompt ($conn, "Preview mode disabled");
@@ -1296,7 +1316,9 @@ frame_pageno = ".$matches[1];
 			if ($r['result'])
 			{
 				$rows = @mysqli_num_rows($r['result']);
-				@mysqli_free_result($r['result']);
+				//@mysqli_free_result($r['result']);
+					//
+				dbq_free($r);
 				if (($rows < 1) and ($userdata->ip_id != 1)) // Our area or superuser
 				{
 					show_error($userdata->conn, "Page is not yours. Area not created.");
@@ -1370,7 +1392,9 @@ frame_pageno = ".$matches[1];
 				}
 				else
 					show_error($userdata->conn, "Dynamic frame entry not found.");
-				@mysqli_free_result($r['result']);
+				//@mysqli_free_result($r['result']);
+				//
+				dbq_free($r);
 			}
 			else	show_error($userdata->conn, "Can't check if entry exists.");
 		}
@@ -1473,7 +1497,9 @@ frame_pageno = ".$matches[1];
 					$data['ip_name'] = trim($data['ip_name']);
 					$data['ip_key'] = trim($data['ip_key']);
 					$data['ip_location'] = trim($data['ip_location']);
-					@mysqli_free_result($r2['result']);
+					//@mysqli_free_result($r2['result']);
+				//
+					dbq_free($r2);
 				
 					show_prompt($userdata->conn, "Name: ".$data['ip_name']);
 					ser_output_conn(VCURSORON);
@@ -1546,7 +1572,9 @@ frame_pageno = ".$matches[1];
 				} // OUT OF PLACE INDENT END
 			}
 			else show_error($userdata->conn, "No such user. Cannot set IP.");
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+					//
+			dbq_free($r);
 		}
 		else
 			show_error($userdata->conn, "Bad user id.");
@@ -1585,7 +1613,8 @@ frame_pageno = ".$matches[1];
 				}
 			}
 			else	show_error($userdata->conn, "IP not found.");
-			@mysqli_free_result($r['result']);	
+			//@mysqli_free_result($r['result']);	
+			dbq_free($r);
 		}
 		else	show_error($userdata->conn, "IP not found.");
 	}
@@ -1664,7 +1693,8 @@ frame_pageno = ".$matches[1];
 							show_prompt($userdata->conn, "Permission changed for user ".$matches[2]);
 					}
 				}
-				@mysqli_free_result($r['result']);
+				//@mysqli_free_result($r['result']);
+				dbq_free($r);
 			}
 			else
 				if (!$user_id)
@@ -1709,7 +1739,8 @@ frame_pageno = ".$matches[1];
                                                         show_prompt($userdata->conn, "Area access modified. Permissions removed.");
 						}
                                 }
-                                @mysqli_free_result($r['result']);
+                                //@mysqli_free_result($r['result']);
+				dbq_free($r);
                         }
                         else
                                 show_error($userdata->conn, "Command failed.");
@@ -1780,7 +1811,8 @@ frame_pageno = ".$matches[1];
 					else
 						show_error($userdata->conn, $boardname." not found");
 	
-					@mysqli_free_result($r['result']);
+					//@mysqli_free_result($r['result']);
+					dbq_free($r);
 				}
 				else
 					show_error($userdata->conn, "Database error.");
@@ -1843,7 +1875,8 @@ frame_pageno = ".$matches[1];
 					show_error($userdata->conn, "Code not found or not yours.");
 				else
 					show_prompt($userdata->conn, $r['affected']." code(s) deleted.");
-				@mysqli_free_result($r['result']);
+				//@mysqli_free_result($r['result']);
+				dbq_free($r);
 
 			}
 			else
@@ -1876,13 +1909,15 @@ frame_pageno = ".$matches[1];
 			log_event ('Priv Violation', $userdata->user_id, "Attempted ".$str);
 		}
 	}
+	else if (preg_match('/^90$/', $str) and $userdata->logoffpage != false)
+		$ret = $userdata->logoffpage;
 	else if (preg_match('/^[1-9][0-9]*$/', $str))
 	{ // Frame number
 		$ret = $str;
 	}
 	else if (preg_match('/^0$/', $str) or preg_match('/^home$/i', $str))
 		$ret = $userdata->homepage;
-	else if ($pg = is_short($str))
+	else if ($pg = is_short($str, $ip_id))
 		$ret = $pg;
 	else if (($str != "*") && ($str != "00") && ($str != '09')) // Redisplay
 		show_error($conn,"Bad command");
@@ -1891,15 +1926,16 @@ frame_pageno = ".$matches[1];
 
 }
 	
-function is_short($s) // See if the star command is a short code
+function is_short($s, $ip_id) // See if the star command is a short code
 {
 	$rval = false;
-	$r = dbq("select frame_pageno from short where short_name = ?", "s", $s);
+	$r = dbq("select frame_pageno from short where short_name = ? and ip_id = ?", "si", $s, $ip_id);
 	if ($r['result'])
 	{
 		if ($row = @mysqli_fetch_assoc($r['result']))
 			$rval = $row['frame_pageno'];
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 	}
 
 	return $rval;
@@ -1957,12 +1993,13 @@ function run_instance($conn)
 	// Start transaction
 	dbq_starttransaction();
 
-	$r = dbq("select node_id, node_name, node_baud, node_homepage, node_startpage, node_ip_id from node where node_id=?", "i", $port_data['node_id']);
+	$r = dbq("select node_id, node_name, node_baud, node_homepage, node_startpage, node_logoffpage, node_ip_id from node where node_id=?", "i", $port_data['node_id']);
 	if ($r['result'])
 	{
 		if ($r['numrows'] < 1)
 		{
-			@mysqli_free_result($r['result']);
+			//@mysqli_free_result($r['result']);
+			dbq_free($r);
 			ser_output_conn("No avaiable nodes. Please try later.\r\n");
 			exit();
 		}
@@ -1990,12 +2027,20 @@ function run_instance($conn)
 				$config['startpage'] = $d['node_startpage'];
 
 			if ($d['node_homepage']) // Overwrite main config
+			{
 				$config['homepage'] = $d['node_homepage'];
+				$userdata->homepage = $d['node_homepage'];
+			}
+
+			if ($d['node_logoffpage']) // Overwrite *90#
+				$userdata->logoffpage = $d['node_logoffpage'];
+			else	$userdata->logoffpage = false;
 	
 			$userdata->limit_ip_id = $d['node_ip_id'];
 	
 		}
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 
 		dbq_commit();
 	}
@@ -2025,20 +2070,22 @@ function run_instance($conn)
 	$res_code = null;
 
 	// Look up msg reading page
-	$r = dbq("select frame_pageno_list from msgboard where find_in_set('personal', mb_flags) and mb_name='PRIVATE' limit 1");
+	$r = dbq("select msgboard.mb_id, frame_pageno_list from information_provider, msgboard where find_in_set('personal', mb_flags) and information_provider.ip_id=".($userdata->limit_ip_id ? $userdata->limit_ip_id : 1)." and information_provider.mb_id = msgboard.mb_id limit 1");
 	if ($r['result'])
 	{
 		if ($r['numrows'] == 1)
 		{
 			$data = @mysqli_fetch_assoc($r['result']);
 			$userdata->msg_reading_page = $data['frame_pageno_list'];
+			$userdata->mb_id = $data['mb_id'];
 		}
-		@mysqli_free_result($r['result']);
+		//@mysqli_free_result($r['result']);
+		dbq_free($r);
 	}
 
 	if (!($userdata->msg_reading_page))
 	{
-		ser_output_conn("Msg database failed. bye.\r\n");
+		ser_output_conn("Msg database failed. Disconnecting.\r\n");
 		exit();
 	}
 
@@ -2118,7 +2165,7 @@ function run_instance($conn)
 			case TX_OK:
 				if (($userdata->user_id) && (time() - $userdata->last_new_msg_check) >= (10 * 60)) // 10 minute check
 				{
-					$new_msgs = check_for_new_mail();
+					$new_msgs = check_for_new_mail($userdata->mb_id);
 					if ($new_msgs > 0)
 					{
 						show_prompt($userdata->conn, "You have".VTCYN.$new_msgs.VTGRN."unread msg".($new_msgs == 1 ? "" : "s")." - *".$userdata->msg_reading_page."_");
@@ -2164,7 +2211,7 @@ function run_instance($conn)
 					$input_string = $key[1];
 					debug ("Processing star command ".$key[1]);
 					$tmp = $userdata->frame_data["frame_pageno"].$userdata->frame_data["frame_subframeid"];
-					$frame = process_star($conn, $input_string, $tmp, $userdata->frame_previous);
+					$frame = process_star($conn, $input_string, $tmp, $userdata->frame_previous, ($userdata->limit_ip_id ? $userdata->limit_ip_id : 1));
 					if ($frame != -1) // Rogue for bad command
 					{
 						if ($frame != $tmp)
@@ -2314,8 +2361,6 @@ function phoenix($sock)
 	{
 		$pid = pcntl_fork();
 
-		// Clear screen
-		ser_output_conn(VCLS);
 
 		if ($pid == -1)
 		{
@@ -2328,6 +2373,8 @@ function phoenix($sock)
 		{
 			debug("Child process created on inbound connection.");
 			$userdata->conn = $conn;
+			// Clear screen
+			ser_output_conn(VCLS);
 			run_instance($conn);
 			debug("Forked child ended.");
 			socket_shutdown($conn, 2);

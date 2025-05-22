@@ -37,8 +37,11 @@ function logoff($conn = false)
 
 	sleep(3); // Clear buffers etc.
 
-	@socket_shutdown($conn,2);
-	@socket_close($conn);
+	if ($conn)
+	{
+		@socket_shutdown($conn,2);
+		@socket_close($conn);
+	}
 	exit();
 }
 
@@ -254,8 +257,8 @@ function ser_input_insist($valid = false, $allow_block = false, $upper = false)
 	{
 		$recv = ser_input($userdata->conn, ($current_escape ? $highbit_chars : $non_highbit_chars), $allow_block, $upper);
 		//debug ("ser_input returned ord ".ord($recv). " -- is zero? ".($recv === 0 ? "yes" : "no"));
-		if ($recv < 0)
-		{	logoff(); exit(); }
+		//if ($recv < 0)
+		//{	logoff(); exit(); }
 		if ($recv === 0) // Really got a zero
 		{
 			if  (!$allow_block) // Get out if not blocking
@@ -314,6 +317,9 @@ function ser_input ($conn, $valid = false, $allow_block = false, $upper = false)
 			socket_set_nonblock($conn);
 
 		$recv = @socket_read($conn,1); // Take anything
+
+		//if ($recv)
+			//printf ("Input character %s\n", $recv);
 	}
 	else
 	{
@@ -323,15 +329,15 @@ function ser_input ($conn, $valid = false, $allow_block = false, $upper = false)
 			stream_set_blocking($conn, 0);
 
 		$recv = fgetc($conn);
-
 	}
+
 
 	$userdata->last_input = microtime(true);
 	
 	// Return false if we mysteriously get a character with bit 8 set
-	if ($recv > 127) // Noise
-		$recv = false;
-	else if ($recv === false) // Some form of error
+	//if ($recv > 127) // Noise
+		//$recv = false;
+	if ($recv === false) // Some form of error
 	{	
 		if (!$userdata->console)
 		{
@@ -349,14 +355,14 @@ function ser_input ($conn, $valid = false, $allow_block = false, $upper = false)
 
 		}
 	}
-		
+/*		
 	if ($recv < 0) // Error on receive
 	{
 		// This needs moving or getting rid of
 		debug ("ser_input() got disconnect for user id ".$userdata->user_id);
 		logoff($conn);
 	}
-
+ */
 	if ($upper)
 		$recv = strtoupper($recv);
 	// Return false if this is not a character we are allowed to accept
@@ -623,7 +629,8 @@ where	frame_pageno = ? and frame_subframe_id = ?";
 					else
 						$ret = $row['frame_id'];
 				}
-				@mysqli_free_result($r['result']);
+				dbq_free($r);
+				//@mysqli_free_result($r['result']);
 			}
 		}
 	}
@@ -651,7 +658,8 @@ function published_yn($frame, $yn)
 		if ($row = @mysqli_fetch_assoc($r['result']))
 			$ret = $row['frame_id'];
 		else	$ret = false;
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 	}
 
 	return $ret;
@@ -677,7 +685,8 @@ function is_public($frame_id)
 	if ($r['result'])
 	{
 		$row = @mysqli_fetch_assoc($r['result']);
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 		if (preg_match('/login/', $row['frame_flags']))
 			$answer = true;
 	}
@@ -726,7 +735,8 @@ from	frame join area on frame.area_id = area.area_id where frame.frame_pageno=? 
 		if ($r['result'])
 		{
 			$row = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			$area_public = $row['area_public'];
 			$area_id = $row['area_id'];
 
@@ -763,7 +773,8 @@ and	area_id = ?";
 				else
 				if ($area_public == "Public")
 					$ret = CA_USER;
-				@mysqli_free_result($r['result']);
+				dbq_free($r);
+				//@mysqli_free_result($r['result']);
 			}
 		}
 	}
@@ -794,7 +805,8 @@ and	ip_id = ?";
 	{
 		if ($r['numrows'] == 1)
 			$ret = true; // We got one row back so must have matched
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 	}
 
 	return $ret;
@@ -881,7 +893,8 @@ if (false)
 		if ($r['result'])
 		{
 			$row = @mysqli_fetch_assoc($r['result']);
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 			$login_flag = preg_match('/login/', $row['frame_flags']);
 			if (!$userdata->user_id) // Not logged in - so frame MUSTN'T have login flag set
 			{
@@ -1005,11 +1018,14 @@ function ser_input_full($valid = false, $allow_block = false)
 	$ret = array(RX_EMPTY, null);
 
 	$input = ser_input ($userdata->conn, $valid, $allow_block);
-	if ( ( ($input === false) || ($input === 0) ) && (!$allow_block)) // No valid input
+
+
+	if ( ( ($input === false)/* || ($input === 0) */ ) && (!$allow_block)) // No valid input
 		return array(RX_EMPTY, null);
 
-	if ($input < 0) // Error
+	if ($input === false) // Error
 	{
+		$input = socket_last_error();
 		if (
 			($input == (-1 * SOCKET_ECONNABORTED))
 		||	($input == (-1 * SOCKET_ENOTCONN))
@@ -1021,9 +1037,9 @@ function ser_input_full($valid = false, $allow_block = false)
 			return array(RX_ERROR, (-1 * $input));
 	}
 
-	if ($allow_block && (($input === 0) || ($input === false))) // We got here with invalid input on a blocking connection
+	if ($allow_block && (/* ($input === 0) || */ ($input === false))) // We got here with invalid input on a blocking connection
 	{	// Wait for some valid input
-		while ( ($input === false) || ($input === 0) )
+		while ( ($input === false) /* || ($input === 0) */ )
 			$input = ser_input ($userdata->conn, $valid, $allow_block);
 	}
 
@@ -1078,7 +1094,8 @@ function get_area_id_by_name ($area_name, $ip_id = null)
 	{
 		if ($row = @mysqli_fetch_assoc($r['result']))
 			$retval = $row['area_id'];
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 	}
 	else	debug("get_area_id(".$area_name.", ".$ip_id.") - query failed.");
 
@@ -1111,7 +1128,8 @@ function ip_match_page ($ip_regex, $pg_regex)
 	{
 		if ($r['numrows'] == 1)
 			$retval = true;
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 	}
 
 	return $retval;
@@ -1212,7 +1230,7 @@ function page_get_priv($pageno, $userid)
 		{
 			$retval[1] = $data['area_id'];
 			$retval[2] = $data['area_name'];
-			if ($data['ip_id'] == $userdata->ip_id) // Owner
+			if ($data['ip_id'] == $userdata->ip_id or (!is_null($userdata->secondary_ip_id) and array_key_exists($data['ip_id'], $userdata->secondary_ip_id))) // Owner - or we have secondary ownership via the ip_user table
 				$retval[0] = PRIV_OWNER;
 			else if ($data['permission'] == 1) // Positive result
 				if ($data['ap_permission'] == 'Moderator')
@@ -1222,7 +1240,8 @@ function page_get_priv($pageno, $userid)
 				else
 					$retval[0] = PRIV_USER;
 		}
-		@mysqli_free_result($r['result']);
+		dbq_free($r);
+		//@mysqli_free_result($r['result']);
 	}
 
 	// Re-set to PRIV_NONE if there is an IP limit on this node and this would be in breach
@@ -1239,7 +1258,8 @@ function page_get_priv($pageno, $userid)
 				debug ("page_get_priv(): page is in IP ".$e['ip_id']." and our limiter is to ".$userdata->limit_ip_id);
 				$retval = array(PRIV_NONE, NULL, NULL);
 			}
-			@mysqli_free_result($r['result']);
+			dbq_free($r);
+			//@mysqli_free_result($r['result']);
 		}
 		else $retval = array(PRIV_NONE, NULL, NULL); // fallback deny
 	}	

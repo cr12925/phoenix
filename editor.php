@@ -29,6 +29,21 @@ function process_editor_star($conn,$star_str)
 
 }
 
+function get_frame_ip_id($frame)
+{
+	$query = "select ip_id from information_provider where ? rlike ip_base_regex order by length(ip_base) desc limit 1";
+	$s = dbq($query, "s", $frame);
+	$ret = null;
+	if ($s['success'])
+	{
+		$data = @mysqli_fetch_assoc($s['result']);
+		$ret = $data['ip_id'];
+		dbq_free($s);
+	}
+	return $ret;
+
+
+}
 function frame_edit($conn, $frame)
 {
 
@@ -54,6 +69,14 @@ function frame_edit($conn, $frame)
 	debug ("frame_edit($frame): is_published = $frame_id");
 	debug ("frame_edit($frame): is_unpublished = $up_frame_id");
 
+	$ip_id = get_frame_ip_id($frame_pageno);
+
+	if (is_null($ip_id))
+	{
+		show_error($conn, "Unable to create ".$frame." (Unknown IP");
+		return (0);
+	}
+
 	if (!$frame_id && !$up_frame_id)
 	{
 		// Create from scratch as unpublished
@@ -63,19 +86,20 @@ function frame_edit($conn, $frame)
 INSERT INTO frame(frame_pageno, frame_subframeid, frame_content, frame_flags, ip_id)
 VALUES (?, ?, to_base64(?), 'login,unpublished', ?)";
 
-                 $r = dbq($query, "issi", $frame_pageno, $frame_subframeid, sprintf("% 880s", ""), $userdata->ip_id);
+                 $r = dbq($query, "issi", $frame_pageno, $frame_subframeid, sprintf("% 880s", ""), $ip_id);
         
                  if ($r['success'])
                  {
  	                show_prompt ($conn, "Frame ".$frame." created");  
-                        @mysqli_free_result ($r['result']);
+		 	$inserted_id = $r['insert_id'];
+			dbq_free($r);
+                        //if (!is_bool($r['result'])) @mysqli_free_result ($r['result']);
                  }
                  else
                  { 
                        show_error ($conn, "Unable to create ".$frame);
 			return(0);
                  }
-		 $inserted_id = $r['insert_id'];
 
 	}
 	else if ($frame_id && !$up_frame_id) // published only
@@ -92,11 +116,10 @@ where		frame_id = ?";
 			log_event("Misc", $userdata->user_id, "Copy frame ".$frame." failed");
 			return(0);
 		}
-		else
-			@mysqli_stmt_close();
-			//@mysqli_free_result($r['result']);
 
 		$inserted_id = $r['insert_id'];
+		dbq_free($r);
+
 		$query = "insert into frame_key(frame_id, frame_keypress, frame_key_action, frame_key_metadata1, frame_key_metadata2, frame_key_flags)
 		select ".$inserted_id.", frame_keypress, frame_key_action, frame_key_metadata1, frame_key_metadata2, if(length(frame_key_flags)=0,'unpublished',concat('unpublished,', frame_key_flags)) as frame_key_flags
 from		frame_key
@@ -109,8 +132,7 @@ where		frame_id = ?";
                         return(0);
                 }
                 else
-			@mysqli_stmt_close();
-                        //@mysqli_free_result($r['result']);
+			dbq_free($r);
 
 		$query = "insert into frame_response(frame_id, fr_start, fr_end, fr_attr,  
 				fr_limit_input, fr_fieldname, fr_flags, fr_action, fr_ip_validate_function)
@@ -126,7 +148,8 @@ where		frame_id = ?";
                         return(0);
                 }
                 else
-			@mysqli_stmt_close();
+			dbq_free($r);
+			//@mysqli_stmt_close();
                         //@mysqli_free_result($r['result']);
 
 	}
@@ -556,8 +579,9 @@ where		frame_id = ?";
 								{
 									show_prompt($conn, "Frame saved.");
 									goto_xy($conn, $x, $y);
-									@mysqli_stmt_close();
+									//@mysqli_stmt_close();
 									//@mysqli_free_result($r['result']);
+									dbq_free($r);
 								}
 */
 		
@@ -570,20 +594,29 @@ where		frame_id = ?";
 								// Needs a transaction wrapping round this.
 
 								$r = dbq("select frame_id from frame where frame_pageno=? and frame_subframeid=? and !find_in_set('unpublished', frame_flags)", "is", $frame_pageno, $frame_subframeid);
-								if ($r['result'])
+								if ($r['success'])
 								{
 									if ($row = @mysqli_fetch_assoc($r['result']))
 									{
 										$old_frame_id = $row['frame_id'];
-										$r = dbq("delete from frame where frame_id=?", "i", $old_frame_id);
-										$r = dbq("delete from frame_key where frame_id=?", "i", $old_frame_id);
-										$r = dbq("delete from frame_response where frame_id=?", "i", $old_frame_id);
+										$r2 = dbq("delete from frame where frame_id=?", "i", $old_frame_id);
+
+										if (!$r2['success']) debug ("Editor could not delete old frame");
+
+										$r2 = dbq("delete from frame_key where frame_id=?", "i", $old_frame_id);
+										if (!$r2['success']) debug ("Editor could not delete old frame keys");
+
+										$r2 = dbq("delete from frame_response where frame_id=?", "i", $old_frame_id);
+										if (!$r2['success']) debug ("Editor could not delete old frame responses");
 									}
-									@mysqli_free_result($r['result']);
+									dbq_free($r);
 								}
 								$r = dbq("update frame set frame_flags = trim(both ',' from replace(concat(',', frame_flags, ','), ',unpublished,', ',')) where frame_id = ?", "i", $inserted_id);
+								if (!$r['success']) debug ("Editor could not update frame flags to publish frame");
 								$r = dbq("update frame_key set frame_key_flags = trim(both ',' from replace(concat(',', frame_key_flags, ','), ',unpublished,', ',')) where frame_id = ?", "i", $inserted_id);
+								if (!$r['success']) debug ("Editor could not update frame flags to publish frame keys");
 								$r = dbq("update frame_response set fr_flags = trim(both ',' from replace(concat(',', fr_flags, ','), ',unpublished,', ',')) where frame_id = ?", "i", $inserted_id);
+								if (!$r['success']) debug ("Editor could not update frame flags to publish frame responses");
 								// ERROR CHECK HERE!
 					
 								show_prompt($conn, "Frame published");
@@ -852,7 +885,8 @@ where		frame_id = ?";
 								  		{
 											show_prompt($conn, "Field saved.");
 											sleep(1);
-											@mysqli_free_result($r['result']);
+											//@mysqli_free_result($r['result']);
+											dbq_free($r);
 										}
 										else
 										{	show_error($conn, "Error saving field."); sleep(1);	
@@ -950,7 +984,9 @@ where		frame_id = ?";
 
 /* Old database code
 								}
-								@mysqli_free_result($rvd['result']);		
+
+								dbq_free($rvd);
+								//@mysqli_free_result($rvd['result']);		
 
 							}
 							else
@@ -968,7 +1004,8 @@ where		frame_id = ?";
 							if ($fd['success'])
 							{
 								show_prompt($conn, $fdelete." deleted.");
-								@mysqli_free_result($fd['result']);
+								//@mysqli_free_result($fd['result']);
+								dbq_free($fd);
 							} else	show_error($conn, "Database error.");
 */
 							$found = false;
@@ -1001,7 +1038,8 @@ where		frame_id = ?";
 							if ($fvd['success'])
 							{
 								$fvd_data = @mysqli_fetch_assoc($fvd['result']);
-								@mysqli_free_result($fvd['result']);
+								//@mysqli_free_result($fvd['result']);
+								dbq_free($fvd);
 								if ($fvd_data['framevars'] == 1) // Framevars enabled at the moment
 								{
 									$fvd = dbq("update frame set frame_flags=trim(both ',' from replace(concat(',', frame_flags, ','), ',framevars,', ',')) where frame_id = ?", "i", $userdata->frame_data['frame_id']);
