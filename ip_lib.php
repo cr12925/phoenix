@@ -53,7 +53,6 @@ function ip_function($ip, $function, $frame_id, $data_array)
 		if ($r['numrows'] == 1)
 			$force_system = 1;
 		dbq_free($r);
-		//@mysqli_free_result($r['result']);
 	}
 
 	$r = dbq("select ip_use_sysip from information_provider where ip_id = ?", "i", $ip);
@@ -120,7 +119,19 @@ function ip_dynamic($ip, $user_id, $frame_pageno, $subframe_id)
 
 	global $dbh; 
 
-	if ($ip == 1)
+	$force_system = 0;
+        $r = dbq("select ip_use_sysip from information_provider where ip_id = ?", "i", $ip);
+        if ($r['success'])
+        {
+                if ($r['numrows'] == 1)
+                {
+                        $row = @mysqli_fetch_assoc($r['result']);
+                        $force_system = $row['ip_use_sysip'];
+                }
+                dbq_free($r);
+        }
+
+	if ($ip == 1 or $force_system)
 		$data = sysip_DYNAMIC($user_id, $frame_pageno, $subframe_id);
 	else
 		$data = ip_function($ip, 'DYNAMIC', $frame_pageno.$subframe_id, array());
