@@ -1651,7 +1651,7 @@ frame_pageno = ".$matches[1];
 			log_event ('Priv Violation', $userdata->user_id, "Attempted ".$str);
 		}
 	}
-	else if (preg_match('/^access\s+([A-Za-z0-9]+)\s+([1-9][0-9]*)\s+([pr])\s+([mu])$/i', $str, $matches)) // *AREA USER [areaname] [userid] (PNR) (MU), being Positive, Negative, Remove [from area permissions] and [M]oderator, [U]ser
+	else if (preg_match('/^access\s+([A-Za-z0-9]+)\s+([1-9][0-9]*)\s+([pr])\s+([muo])$/i', $str, $matches)) // *AREA USER [areaname] [userid] (PNR) (MU), being Positive, Negative, Remove [from area permissions] and [M]oderator, [U]ser
 	{
 		$area_name = strtoupper($matches[1]);
 		$user_id = $matches[2];
@@ -1686,6 +1686,8 @@ frame_pageno = ".$matches[1];
 						$permission = "User";
 						if ($user_type == "M")
 							$permission = "Moderator";
+						elseif ($user_type == "O")
+							$permission = "Owner"; /* Can edit and stuff as well as moderate */
 						$ap_invert = "Positive";
 						if ($invert == "N")
 							$ap_invert = "Negative";
