@@ -1232,10 +1232,10 @@ function page_get_priv($pageno, $userid)
 			$retval[2] = $data['area_name'];
 			if ($data['ip_id'] == $userdata->ip_id or (!is_null($userdata->secondary_ip_id) and array_key_exists($data['ip_id'], $userdata->secondary_ip_id))) // Owner - or we have secondary ownership via the ip_user table
 				$retval[0] = PRIV_OWNER;
+			else if ($data['ap_permission'] == 'Moderator')
+				$reval[0] = PRIV_OWNER;
 			else if ($data['permission'] == 1) // Positive result
-				if ($data['ap_permission'] == 'Moderator')
-					$retval[0] = PRIV_MOD;
-				else if ($data['area_public'] == 'Public')
+				if ($data['area_public'] == 'Public')
 					$retval[0] = PRIV_PUBLIC;
 				else
 					$retval[0] = PRIV_USER;
@@ -1244,9 +1244,9 @@ function page_get_priv($pageno, $userid)
 		//@mysqli_free_result($r['result']);
 	}
 
-	// Re-set to PRIV_NONE if there is an IP limit on this node and this would be in breach
+	// Re-set to PRIV_NONE if there is an IP limit on this node and this would be in breach - if we're not already identified as owner
 
-	if (($userdata->limit_ip_id) && ($userdata->ip_id != 1)) 
+	if (!($retval[0] != PRIV_OWNER) && ($userdata->limit_ip_id) && ($userdata->ip_id != 1)) 
 	{
 		$r = dbq("select ip_id from information_provider where ? rlike concat(ip_base_regex,'.*') order by length(ip_base_regex) desc limit 1", "s", $pageno);
 
@@ -1290,4 +1290,21 @@ function eighties_delay($n = 2)
 {
 	usleep(rand(500000, 1000000*$n));
 }
+
+function get_frame_ip_id($frame)
+{
+        $query = "select ip_id from information_provider where ? rlike ip_base_regex order by length(ip_base) desc limit 1";
+        $s = dbq($query, "s", $frame);
+        $ret = null;
+        if ($s['success'])
+        {
+                $data = @mysqli_fetch_assoc($s['result']);
+                $ret = $data['ip_id'];
+                dbq_free($s);
+        }
+        return $ret;
+
+
+}
+
 ?>
