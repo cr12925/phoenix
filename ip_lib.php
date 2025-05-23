@@ -583,6 +583,7 @@ LIMIT	?, ?", 	"iii", $userdata->ip_id, $range_start, $range_end);
 		$frame_data['frame_content'] = get_nr_board("BLY", "D", null);
 		$frame_data['frame_routes']['0'] = array('Page', 0, "");
 		$frame_data['frame_routes']['9'] = array('Page', 171, "");
+		$frame_data['area_name'] = 'ECONET';
 	}
 
 	if (strlen(strval($pageno)) >= 6)
