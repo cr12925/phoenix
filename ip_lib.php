@@ -565,6 +565,15 @@ LIMIT	?, ?", 	"iii", $userdata->ip_id, $range_start, $range_end);
 
 	}
 
+	/* TNMOC FUDGE */
+
+	if ($pageno == 6854110) // National Rail Departures from Bletchley
+	{
+		$frame_data['frame_content'] = get_nr_board("BLY", "D", null);
+		$frame_data['frame_routes']['0'] = array('Page', 0, "");
+		$frame_data['frame_routes']['9'] = array('Page', 171, "");
+	}
+
 	if (strlen(strval($pageno)) >= 6)
 		$page_base = intval(
 				substr(			
