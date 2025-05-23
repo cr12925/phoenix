@@ -1233,7 +1233,7 @@ function page_get_priv($pageno, $userid)
 			if ($data['ip_id'] == $userdata->ip_id or (!is_null($userdata->secondary_ip_id) and array_key_exists($data['ip_id'], $userdata->secondary_ip_id))) // Owner - or we have secondary ownership via the ip_user table
 				$retval[0] = PRIV_OWNER;
 			else if ($data['ap_permission'] == 'Moderator')
-				$reval[0] = PRIV_OWNER;
+				$retval[0] = PRIV_OWNER;
 			else if ($data['permission'] == 1) // Positive result
 				if ($data['area_public'] == 'Public')
 					$retval[0] = PRIV_PUBLIC;

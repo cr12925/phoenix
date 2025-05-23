@@ -29,21 +29,6 @@ function process_editor_star($conn,$star_str)
 
 }
 
-function get_frame_ip_id($frame)
-{
-	$query = "select ip_id from information_provider where ? rlike ip_base_regex order by length(ip_base) desc limit 1";
-	$s = dbq($query, "s", $frame);
-	$ret = null;
-	if ($s['success'])
-	{
-		$data = @mysqli_fetch_assoc($s['result']);
-		$ret = $data['ip_id'];
-		dbq_free($s);
-	}
-	return $ret;
-
-
-}
 function frame_edit($conn, $frame)
 {
 

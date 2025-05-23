@@ -1302,7 +1302,10 @@ frame_pageno = ".$matches[1];
 	}
 	else if (preg_match('/^acreate\s+([a-z0-9]+)\s+([co])\s+([1-9][0-9]*[X]*)$/i', $str, $matches)) // *AREA CREATE [AREANAME] [CP] (Closed, Public)-- create new area
 	{
-		if ($userdata->ip_id) // Is an IP
+		$operative_ip_id = frame_get_ip_id(strtoupper($matches[3]));
+
+		#if ($userdata->ip_id) // Is an IP
+		if ($userdata->ip_id == $operative_ip_id || (is_array($userdata->secondary_ip_id) && array_key_exists($userdata->secondary_ip_id[$operative_ip_id])))
 		{
 			$area_name = strtoupper($matches[1]);	
 			$area_public = "Open";
@@ -1312,7 +1315,7 @@ frame_pageno = ".$matches[1];
 			$area_len = strlen($area_pageno);
 			$area_leftx = strstr($area_pageno, 'X', true);
 			$query = "select area_id from area where ip_id = ? and ? RLIKE area_pageno_regex order by LENGTH(area_pageno) DESC";
-			$r = dbq($query, "is", $userdata->ip_id, $area_pageno);
+			$r = dbq($query, "is", $operative_ip_id, $area_pageno);
 			if ($r['result'])
 			{
 				$rows = @mysqli_num_rows($r['result']);
@@ -1327,7 +1330,7 @@ frame_pageno = ".$matches[1];
 				else
 				{	
 					$query = "insert into area(area_public, area_name, ip_id, area_pageno, area_pageno_regex) values (?, ?, ?, ?, ?)";
-					$r = dbq($query, "ssiss", $area_public, strtoupper($area_name), $userdata->ip_id, $area_pageno, ip_regex_to_object($area_pageno));
+					$r = dbq($query, "ssiss", $area_public, strtoupper($area_name), $operative_ip_id, $area_pageno, ip_regex_to_object($area_pageno));
 					if ($r['success'])
 						show_prompt($userdata->conn, "Area ".$area_name." created.");
 					else

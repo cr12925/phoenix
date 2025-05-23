@@ -19,10 +19,12 @@
 
 // Database
 
-define('DB_HOST', "localhost");
+#define('DB_HOST', "localhost");
 define('DB_USER', "phoenix");
-define('DB_PW', "phoenix");
+#define('DB_PW', "phoenix");
 define('DB_NAME', "phoenix");
+define('DB_HOST', "mysql.server.royle.org");
+define('DB_PW', "kmVQNcD77EX4M4bka3ja");
 
 // Don't alter anything below here
 

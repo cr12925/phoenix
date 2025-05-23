@@ -278,6 +278,8 @@ CREATE TABLE `information_provider` (
   `ip_key` char(50) NOT NULL,
   `ip_location` char(100) NOT NULL,
   `ip_base_regex` char(30) NOT NULL,
+  `ip_use_sysip` tinyint(1) NOT NULL DEFAULT 1,
+  `mb_id` bigint(20) unsigned NOT NULL ,
   PRIMARY KEY (`ip_id`),
   UNIQUE KEY `ip_name` (`ip_name`),
   UNIQUE KEY `ip_header` (`ip_header`(20))
@@ -290,7 +292,7 @@ CREATE TABLE `information_provider` (
 
 LOCK TABLES `information_provider` WRITE;
 /*!40000 ALTER TABLE `information_provider` DISABLE KEYS */;
-INSERT INTO `information_provider` VALUES (1,'PHOENIX System','ÇPÅHÜOÑEáNÖIÉX','X',10000,NULL,'','','^[1-9X]');
+INSERT INTO `information_provider` VALUES (1,'PHOENIX System','ÇPÅHÜOÑEáNÖIÉX','X',10000,NULL,'','','^[1-9X]', 1, NULL);
 /*!40000 ALTER TABLE `information_provider` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -424,6 +426,7 @@ CREATE TABLE `node` (
   `node_homepage` bigint(20) unsigned DEFAULT NULL,
   `node_portpres` char(10) DEFAULT NULL,
   `node_ip_id` bigint(20) unsigned DEFAULT NULL,
+  `node_logoffpage` bigint(2) unsigned DEFAULT NULL,
   PRIMARY KEY (`node_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -451,7 +454,7 @@ CREATE TABLE `short` (
   `ip_id` bigint(20) unsigned NOT NULL,
   `frame_pageno` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`short_id`),
-  UNIQUE KEY `short_name` (`short_name`)
+  UNIQUE KEY `short_name` (`short_name`, `ip_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -529,5 +532,13 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE IF EXISTS `ip_user`;
+CREATE TABLE `ip_user` (
+	`ip_id` bigint(20) unsigned NOT NULL,
+	`user_id` bigint(20) unsigned NOT NULL,
+	`ipu_flags` set('owner') DEFAULT NULL,
+	PRIMARY KEY (`ip_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Dump completed on 2022-04-14 17:03:09
