@@ -19,9 +19,9 @@
 
 // Database
 
-define('DB_HOST', "localhost");
+define('DB_HOST', "mysql.server.royle.org");
 define('DB_USER', "phoenix");
-define('DB_PW', "phoenix");
+define('DB_PW', "kmVQNcD77EX4M4bka3ja");
 define('DB_NAME', "phoenix");
 
 // Don't alter anything below here
@@ -36,6 +36,7 @@ include_once "viewdata.php";
 include_once "dblib.php";
 include_once "lib.php";
 include_once "nationalrail.php";
+include_once "conf.script.php";
 
 // System vars
 define('IDLEKICKOFF', 20); // Minutes before the system decides a user has really gone away
