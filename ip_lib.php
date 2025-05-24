@@ -33,6 +33,144 @@ function validate_rf_data($ip, $frame_id, $fieldname, $string)
 
 }
 
+// special internal IP function to run a script on the local host
+
+function sysip_script($function, $frame_id, $data, $full_uid)
+{
+	global $userdata;
+
+	preg_match('/^([1-9][0-9]*)([a-z])$/', $frame_id, $matches);
+	$pageno = $matches[1];
+	$subframeid = $matches[2];
+
+	$frame_ip = get_frame_ip_id($pageno);
+
+	$ret = array (IPR_TRYAGAIN, $frame_id);
+
+		$script_tag = strtoupper($function);
+
+		$query = "select ips_id, ip_id, ips_script_path, ips_success_frame_pageno from ip_script where ip_id = ? and ips_tag = ?";
+		$r = dbq($query, "is", $frame_ip, $script_tag);
+		if ($r['success'] && $r['numrows'] > 0)
+		{
+			$row = @mysqli_fetch_assoc($r['result']);
+			$ips_script_path = $row['ips_script_path'];
+			$ips_id = $row['ips_id'];
+			$success_page = $row['ips_success_frame_pageno'];
+
+			dbq_free($r);
+
+			if (!preg_match("/^\//", $ips_script_path)) /* No leading slash - security issue */
+			{
+				show_error ($userdata->conn, "Failed: insecure script");
+				return $ret;
+			}
+
+			// Find parameters required and check them
+
+			$query = "select ipsv_varname, ipsv_content_type from ip_script_vars where ips_id = ?";
+			$r = dbq($query, "i", $ips_id);
+			if ($r['success'])
+			{
+				$script_vars = array ();
+				while ($row = @mysqli_fetch_assoc($r['result']))
+					$script_vars[$row['ipsv_varname']] = $row;
+				dbq_free($r);
+
+				foreach ($script_vars as $k => $v)
+				{
+					$k = strtoupper($k);
+					if (!array_key_exists($k, $data))
+					{
+						show_error($userdata->conn, "Missing frame variable $k");
+						return $ret;
+					}
+
+					switch ($v['ipsv_content_type'])
+					{
+						case 'Numeric':
+						{
+							if (!preg_match("/^\d+$/", $data[$k]))
+							{
+								show_error($userdata->conn, $k." must be numeric");
+								return $ret;
+							}
+						} break;
+						case 'Alpha':
+						{
+							if (!preg_match("/^[A-Z]+/i", $data[$k]))
+							{
+								show_error($userdata->conn, $k." must be alpha only");
+								return $ret;
+							}
+						} break;
+						case 'Alphanumeric':
+						{
+							if (!preg_match("/^[\dA-Z]+/i", $data[$k]))
+							{
+								show_error($userdata->conn, $k." must be alphanumeric");
+								return $ret;
+							}
+						} break;
+						default:
+						{
+							show_error ($userdata->conn, $k." : bad content type");
+							return $ret;
+						}
+					}
+
+					/* Do substitution */
+
+					$ips_script_path = preg_replace("/_".$k."_/", $data[$k], $ips_script_path);
+				}
+
+				/* Make sure the command line is safe! */
+
+				$ips_script_path = escapeshellcmd($ips_script_path);
+
+				/* All in order, execute script. */
+
+				debug ("SYS IP Script execute: ".$ips_script_path);
+
+				$output = shell_exec($ips_script_path);
+
+				if (is_null($output))
+					show_error ($userdata->conn, "Gateway failed");
+				else if ($output == false)
+					show_error ($userdata->conn, "Gateway not found");
+				else
+				{
+					/* Execute the script here and collect its output */
+					/* Should return a first line with a return code, 
+					 * 0 being success and any other number being
+					 * otherwise, followed by line 2 onwards being
+					 * output.
+					 */
+
+					if (preg_match("/^Success/i", $output))
+						$ret = array(IPR_GOTOFRAME, $success_page);
+					else
+					{
+						show_error($userdata->conn, "Registration failed - try again?");
+						sleep(3);
+						$ret = array(IPR_GOTOFRAME, $userdata->frame_previous);
+					}
+
+				}
+			}
+			else
+				show_error($userdata->conn, "IP conn. failed: no variables");
+	}
+	else
+	{
+		show_error($userdata->conn, "Bad recipient provided.");
+		$ret = array(IPR_GOTOFRAME, $userdata->frame_previous);
+	}
+
+	return $ret;
+
+}
+
 // Actually call the IP over http/https and see what the answer is.
 
 // NB frame_id is actually pageno.subframeid here.
@@ -69,12 +207,23 @@ function ip_function($ip, $function, $frame_id, $data_array)
 	if ($force_system) debug ("Forcing use of system IP call");
 	// If it's the system IP (1) then we check to see if there is a defined function sysip_NNN and call that instead of HTTP
 	
-	if (($force_system or $ip == 1 or ($function == "LOGIN" or $function == "CHPW")) && function_exists("sysip_".$function)) // We always process LOGIN locally against the local database. If an IP wants to use their own login function, they need to specify a different function on the frame.
-	{
-		$function_name = "sysip_".$function;
-		debug ("Calling internal function ".$function_name);
-		$result = $function_name($frame_id, $data_array, $userdata->user_id.userid_checkdigit($userdata->user_id));
-	}
+	if 	(
+			($force_system or $ip == 1)
+		and	(preg_match("/^SCRIPT_(\S+)$/i", $function, $matches))
+		)
+		{
+			debug ("Calling internal script function ".$matches[1]);
+			$result = sysip_script($matches[1], $frame_id, $data_array, $userdata->user_id.userid_checkdigit($userdata->user_id));
+		}
+	else if (
+			($force_system or $ip == 1 
+			or 	($function == "LOGIN" or $function == "CHPW") && function_exists("sysip_".$function))
+		) // We always process LOGIN locally against the local database. If an IP wants to use their own login function, they need to specify a different function on the frame.
+		{
+			$function_name = "sysip_".$function;
+			debug ("Calling internal function ".$function_name);
+			$result = $function_name($frame_id, $data_array, $userdata->user_id.userid_checkdigit($userdata->user_id));
+		}
 	else if ($ip == 1)
 	{	debug ("Calling internal IP function SUBMIT");
 		$result = sysip_SUBMIT($frame_id, $data_array, $userdata->user_id.userid_checkdigit($userdata->user_id));

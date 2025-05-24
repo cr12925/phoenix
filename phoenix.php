@@ -1863,10 +1863,12 @@ frame_pageno = ".$matches[1];
 			if (preg_match($r, $matches[1]))
 				$valid = false;
 			
-		if ($valid and $userdata->ip_id) // Is an IP
+		$shortcode = strtoupper($matches[1]);
+		$pageno = strtoupper($matches[2]);
+		$frame_ip_id = get_frame_ip_id($pageno);
+
+		if ($valid and ($userdata->ip_id == 1 || $userdata->ip_id == $frame_ip_id || (is_array($userdata->secondary_ip_id) && array_key_exists($frame_ip_id, $userdata->secondary_ip_id)))) // Is an IP // ip_id owner is superuser
 		{
-			$shortcode = strtoupper($matches[1]);
-			$pageno = strtoupper($matches[2]);
 
 			// Likewise must check the page being referred to (1) exists (published or unpublished), and (2) is one of our pages.	
 			// Obv also cannot have duplicate short
@@ -1890,7 +1892,7 @@ frame_pageno = ".$matches[1];
 				if ($cpdata[0] & PRIV_OWNER)
 				{
 					$query = "insert into short(short_name, ip_id, frame_pageno) values(?, ?, ?)";
-					$r = dbq($query, "sii", $shortcode, $userdata->ip_id, $pageno);
+					$r = dbq($query, "sii", $shortcode, $frame_ip_id, $pageno);
 					if ($r['affected'] == 1)
 						show_prompt($userdata->conn, "New shortcode $shortcode created.");
 					else
