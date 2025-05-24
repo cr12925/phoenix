@@ -36,7 +36,6 @@ include_once "viewdata.php";
 include_once "dblib.php";
 include_once "lib.php";
 include_once "nationalrail.php";
-include_once "conf.script.php";
 
 // System vars
 define('IDLEKICKOFF', 20); // Minutes before the system decides a user has really gone away
