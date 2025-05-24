@@ -319,8 +319,7 @@ function ser_input ($conn, $valid = false, $allow_block = false, $upper = false)
 		//TEMP
 		//socket_set_option($conn, SOL_SOCKET, SO_RCVTIMEO, 5);
 
-		while (($recv = @socket_read($conn,1)) == false) // Take anything
-			debug ("Apparent timeout...");
+		$recv = @socket_read($conn,1); // Take anything
 
 		//if ($recv)
 			//printf ("Input character %s\n", $recv);
