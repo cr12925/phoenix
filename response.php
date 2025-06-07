@@ -74,6 +74,8 @@ function response_frame()
 
 		if (!$current_wrap)
 		{
+			ser_output_conn(VCURSOROFF);
+
 			goto_xy_pos($current_pos); // Start of input area
 	
 			ser_output_conn(VCURSORON);

@@ -467,7 +467,7 @@ function sysip_LOGIN($frame_id, $data)
 				if (!$userdata->previous_login_time = $row['ull'])
 					$userdata->previous_login_time = "Never";
 				dbq_starttransaction();
-				dbq("update user set user_last_login=now(), user_idle_since=NOW(), user_last_logoff=null, user_last_node=?", "i", $userdata->node_id);
+				dbq("update user set user_last_login=now(), user_idle_since=NOW(), user_last_logoff=null, user_last_node=? where user_id=?", "ii", $userdata->node_id, $userid);
 				dbq_commit();
 				dbq_free($r);
 				//@mysqli_free_result($r['result']);
@@ -686,6 +686,37 @@ function sysip_DYNAMIC($user_id, $pageno, $subframeid)
 				'frame_response' => array(),
 				'area_name' => 'PUBLIC' );
 
+	if ($pageno == 6854199 or $pageno == 92) // Logged on user pages
+	{
+		$logged_on = logged_on_users();
+
+		$frame_data['frame_content'] = sprintf ("%-40s%-40s%-40s%-40s",
+			viewdata_to_chr(VTBLU).viewdata_to_chr(VBKGNEW).viewdata_to_chr(VTYEL)."Currently logged on users","",
+			viewdata_to_chr(VTCYN)."UserID Name                ".viewdata_to_chr(VTYEL)."Node","");
+
+		if (count($logged_on) == 0)
+			$frame_data['frame_content'] .= sprintf("%-40s", viewdata_to_chr(VTRED)."Error: Apparently nobody here.");
+		else
+		{
+			$index = 0;
+			while ($index < 16 and $index < count($logged_on))
+			{
+				$frame_data['frame_content'] .= sprintf ("%s%6d%s%-20s%s%-10s ",
+					viewdata_to_chr(VTCYN),
+					$logged_on[$index]['user_id'].userid_checkdigit($logged_on[$index]['user_id']),
+					viewdata_to_chr(VTGRN),
+					substr($logged_on[$index]['user_realname'], 0, 15),
+					viewdata_to_chr(VTYEL),
+					substr($logged_on[$index]['node_name'], 0, 9));
+				$index++;
+			}
+		}
+
+		$frame_data['frame_content'] .= sprintf ("%-40s%-40s","",viewdata_to_chr(VTGRN)."*_".viewdata_to_chr(VTYEL)."to return,".viewdata_to_chr(VTWHT)."0".viewdata_to_chr(VTYEL)."for the index");
+		$frame_data['frame_routes']['0'] = array('Page', 0, "");
+
+	}
+
 	if ($pageno == 26) // FDLIST page
 	{
 		$range_start = (ord($subframeid) - ord('a'))*20;
@@ -721,7 +752,7 @@ LIMIT	?, ?", 	"iii", $userdata->ip_id, $range_start, $range_end);
 							$userdata->nr_aord,
 							((!preg_match('/^\s*$/', $userdata->nr_filter_stn)) ? $userdata->nr_filter_stn : null)
 				);
-			//$frame_data['frame_content'] = base64_encode($frame_data['frame_content']);
+			$frame_data['frame_content'] .= sprintf("%-40s", viewdata_to_chr(VTGRN)."*09".viewdata_to_chr(VTYEL)."to refresh");
 			$frame_data['frame_routes']['0'] = array('Page', 0, "");
 			$frame_data['frame_routes']['9'] = array('Page', 170, "");
 							
@@ -734,6 +765,7 @@ LIMIT	?, ?", 	"iii", $userdata->ip_id, $range_start, $range_end);
 	if ($pageno == 6854110) // National Rail Departures from Bletchley
 	{
 		$frame_data['frame_content'] = get_nr_board("BLY", "D", null);
+		$frame_data['frame_content'] .= sprintf("%-40s%-40s", "",viewdata_to_chr(VTGRN)."*09".viewdata_to_chr(VTYEL)."to refresh,".viewdata_to_chr(VTGRN)."0".viewdata_to_chr(VTYEL)." for the index");
 		$frame_data['frame_routes']['0'] = array('Page', 0, "");
 		$frame_data['frame_routes']['9'] = array('Page', 171, "");
 		$frame_data['area_name'] = 'ECONET';

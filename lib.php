@@ -1291,7 +1291,7 @@ function viewdata_to_chr($s)
 
 function eighties_delay($n = 2)
 {
-	usleep(rand(500000, 1000000*$n));
+	usleep(rand(500000, 1500000*$n));
 }
 
 function get_frame_ip_id($frame)
@@ -1310,4 +1310,23 @@ function get_frame_ip_id($frame)
 
 }
 
+function logged_on_users($idle_limit = '01:00:00:000000') /* idle_limit is in MySQL timediff format: hh:mm:ss:mmmmmm - so 1 hour is 01:00:00:000000 */
+{
+
+	$query = "select user_id, user_realname, user_last_login, node.node_name from user, node where user_last_logoff is null and timediff(now(),user_idle_since) < ? and user.user_last_node = node.node_id order by user_realname asc";
+	$s = dbq($query, "s", $idle_limit);
+	$ret = array();
+	if ($s['success'])
+	{
+		$index = 0;
+		while ($index < $s['numrows'])
+		{
+			$ret[$index] = @mysqli_fetch_assoc($s['result']);
+			$index++;
+		}
+
+		dbq_free($s);
+	}
+	return $ret;
+}
 ?>
