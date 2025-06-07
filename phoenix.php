@@ -253,7 +253,7 @@ function send_frame_title_userdata ()
 				$frame_pageno="";
 		}
 
-		ser_output_conn(sprintf("%- 19s".$frame_no_colour."%10s    ".VTWHT."%5s", $frame_ip_header, $frame_pageno, $frame_time));
+		ser_output_conn(sprintf("%- 19s".$frame_no_colour."%-14s".VTWHT."%5s", $frame_ip_header, $frame_pageno, $frame_time));
 
 		// Some 80's style computation delay
 		eighties_delay(0.7);
@@ -450,7 +450,10 @@ function send_frame_userdata($startbyte = 0, $allow_keys = true)
 			if ($userdata->is_msg_reading && ($frameline >= $text_index['start_y']) && 
 				($frameline < ($text_index['start_y'] + count($userdata->msg_data['wrapped_display']))))
 				$myline = transplant_data($myline, $text_index['start_x'], $userdata->msg_data['wrapped_display'][$frameline - $text_index['start_y']], $text_index['linelength']);
+
 			$myline = rtrim($myline);
+
+			//debug ("Frame ".$userdata->frame_data['frame_pageno'].$userdata->frame_data['frame_subframeid']." row ".$frameline." trimmed to ".strlen($myline)." characters, being '".$myline."'");
 		
 			if (($startbyte != 0) && ($frameline == $start_row))
 				if (strlen($myline) >= $start_char) // Start char is within the start line - i.e. it isn't in some space at the end
@@ -460,9 +463,10 @@ function send_frame_userdata($startbyte = 0, $allow_keys = true)
 			
 			if (strlen($myline) == 0)
 				$ending="\n";
-			else if (strlen($myline) < 40) // If equal to 40, the cursor will wrap to the next line.
+			else if (($start_char + strlen($myline)) < 40) // If equal to 40, the cursor will wrap to the next line. // 20250606 looks like this is missing the $start_char +
 				$ending = "\r\n";
 			else	$ending = "";
+
 
 			$out_ret = ser_output_conn_keys ($myline.$ending, $allow_keys ? $keys : false); // Need to add keys when we've got them
 
@@ -2000,7 +2004,7 @@ function run_instance($conn)
 	// Start transaction
 	dbq_starttransaction();
 
-	$r = dbq("select node_id, node_name, node_baud, node_homepage, node_startpage, node_logoffpage, node_ip_id from node where node_id=?", "i", $port_data['node_id']);
+	$r = dbq("select node_id, node_name, node_baud, node_homepage, node_startpage, node_intropage, node_logoffpage, node_ip_id from node where node_id=?", "i", $port_data['node_id']);
 	if ($r['result'])
 	{
 		if ($r['numrows'] < 1)
@@ -2033,11 +2037,19 @@ function run_instance($conn)
 			if ($d['node_startpage']) // Overwrite main config
 				$config['startpage'] = $d['node_startpage'];
 
+			if (!$d['node_homepage'])
+				$d['node_homepage'] = 1;
+
 			if ($d['node_homepage']) // Overwrite main config
 			{
 				$config['homepage'] = $d['node_homepage'];
 				$userdata->homepage = $d['node_homepage'];
 			}
+
+			if (!$d['node_intropage'])
+				$d['node_intropage'] = $d['node_homepage'];
+
+			$config['intropage'] = $userdata->intropage = $d['node_intropage'];
 
 			if ($d['node_logoffpage']) // Overwrite *90#
 				$userdata->logoffpage = $d['node_logoffpage'];

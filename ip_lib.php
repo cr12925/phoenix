@@ -500,7 +500,7 @@ function sysip_LOGIN($frame_id, $data)
 					dbq_free($s);
 				}
 
-				return (array(IPR_GOTOFRAME, $userdata->homepage));
+				return (array(IPR_GOTOFRAME, $userdata->intropage));
 			}
 
 		}
@@ -582,16 +582,18 @@ function phoenix_display_rss($url, $page_base, $page_no, $subframeid, $start_row
 						if (isset($lines[$lcount]))
 						{
 							//$this_line = sprintf(chr(130).($lcount == 0 ? $key : ' ').chr(134)."%-37s", iconv("UTF-8", "ISO-8859-1//IGNORE", $lines[$lcount]));
-							// At the moment, story extraction & rendering doesn't work
+							// At the moment, story extraction & rendering doesn't work - trying to make it work!
 							$this_line = sprintf(chr(130).(' ').chr(134)."%-37s", iconv("UTF-8", "ISO-8859-1//IGNORE", $lines[$lcount]));
 						}
 						else	$this_line = sprintf("%40s", "");
 						$framedata .= $this_line;
 					}
 					$framedata .= sprintf("%40s", "");
-					//$frame_data['frame_routes'][strval($key)] = array( 'Page',
-							//intval(strval($page_base).sprintf("%02d",(ord($subframeid)-ord('a'))).strval($key)),
-							//"" );
+					/*
+					$frame_data['frame_routes'][strval($key)] = array( 'Page',
+							intval(strval($page_base).strval($key).sprintf("%02d",(ord($subframeid)-ord('a')))),
+							"" );
+					 */
 					$key++;
 				}
 				else
@@ -614,10 +616,12 @@ function phoenix_display_rss($url, $page_base, $page_no, $subframeid, $start_row
 			//		of story 1 (digit before the subframe ID)
 			//		on page 00 (i.e. first page) 
 			//		of the items at page 101
+			//		20250607 THE ABOVE HAS CHANGED!
+			//		Now xxxPNNa,b,c- P is the story number, NN is the page number within the story
 
 			$subpagenumber = ord($subframeid) - ord('a');
-			$storypage = substr(strval($page_no), -3, 2);
-			$storynumber = substr(strval($page_no), -1, 1);
+			$storypage = substr(strval($page_no), -2, 2);
+			$storynumber = substr(strval($page_no), -3, 1);
 			$storynumber_index = ($storypage * 4) + $storynumber - 1; // -1 because the index starts at 0
 
 			$item = $rss->item[$storynumber_index];
@@ -1144,7 +1148,7 @@ function get_nr_board($station, $dir, $filterCrs = null)
 	
 			$l = VDHEIGHT.VTBLU.VBKGNEW.VTWHT.$data->GetStationBoardResult->locationName."  ".VBKGBLACK;
 			$l = str_repeat(' ', intval((40-strlen($l))/2)).$l;
-			$board[] = substr(sprintf("%- 40s", $l), 0, 40);
+			$board[] = substr(sprintf("%-40s", $l), 0, 40);
 			$board[] = sprintf("%40s", "");
 			$subtitle = ($dir == 'A' ? "Arrivals" : "Departures");
 			$board[] = sprintf("%-40s", str_repeat(' ', intval((40-strlen($subtitle))/2)).$subtitle);
